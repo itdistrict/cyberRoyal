@@ -249,4 +249,4 @@ RDP Settings like Key Passthrough (fetch key combinations e.g. ALT+TAB in the RD
 - SAML auth method for PVWA will not work, apply a groupBasedMode or allAccountsMode
 - MFA auth method like RADIUS with a Challenge (OTP/mTAN) for PVWA will not work (where Non-Challenge like push notification works), apply a groupBasedMode or allAccountsMode
 - Multiple and different connection entries for different connection components in the same Platform cannot be used actually
-- OLAC is not supported
+- OLAC will not be differentiated from safe ACL to create accessable connections

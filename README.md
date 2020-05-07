@@ -25,7 +25,7 @@
 
 The RoyalTS integration with CyberArk PAS comes with a server and a client side.
 The server side provides a prefetched list of safes and accounts.
-The client side provides a powershell script for a "Dynamic Folder" in RoyalTS which creates all connection entries based on the safes and account the client user hase access to.
+The client side provides a powershell script for a "Dynamic Folder" in RoyalTS which creates all connection entries based on the safes and accounts the client user has access to.
 
 ## Requirements
 

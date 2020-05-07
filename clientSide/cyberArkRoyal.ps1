@@ -200,6 +200,7 @@ function Get-ConnectionRDP($acc, $plat) {
     if ($settings.enableNLA) { $entry.NLA = 'true' } else { $entry.NLA = 'false' }
     if ($plat.accountType -eq "domain") {
         if ($plat.connectionComponent -ne "PSM-RDP") { $componentAddition = ' - ' + $plat.connectionComponent }
+
         # Entry Name
         if (![string]::isNullOrEmpty($plat.replaceName)) {
             $entry.Name = $plat.replaceName
@@ -216,6 +217,7 @@ function Get-ConnectionRDP($acc, $plat) {
     }
     else {
         if ($plat.connectionComponent -ne "PSM-RDP") { $componentAddition = ' - ' + $plat.connectionComponent }
+
         # Entry Name
         if (![string]::isNullOrEmpty($plat.replaceName)) {
             $entry.Name = $plat.replaceName
@@ -276,11 +278,11 @@ function Get-ConnectionWEB($acc, $plat) {
     }
 
     switch ($webApp) {
-        "azure" {
+        "ADDITIONAL-IMPLEMENTATION" {
             $fillUser = $caUser + ":" + $acc.userName
             $fillMappings = @( @{ Element = "input#i0116"; Action = "Fill"; Value = $fillUser } )
             $entry.AutoFillElements = $fillMappings
-            $entry.AutoFillDelay = 1000
+            $entry.AutoFillDelay = 3000
         }
         Default { 
             $fillUser = $caUser + ":" + $acc.userName

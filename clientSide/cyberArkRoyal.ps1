@@ -69,6 +69,7 @@ $settings = @"
             "royalTsConnection": "WEB",
             "accountType": "local",
             "webProtocol": "https",
+            "webOverwriteUri": "",
             "webInputObject": 'input#i0116'
         }
     }
@@ -260,8 +261,15 @@ function Get-ConnectionWEB($acc, $plat) {
     $entry.Properties = @{ }
 
     $entry.Type = 'WebConnection'
-    $entry.URL = "$( $plat.webProtocol)://" + $acc.target
     $entry.Username = $caUser
+
+    # Web URI overwrite if defined
+    if (![string]::isNullOrEmpty($plat.webOverwriteUrl)) {  
+        $entry.URL = "$( $plat.webProtocol)://" + $plat.webOverwriteUri
+    } 
+    else {     
+        $entry.URL = "$( $plat.webProtocol)://" + $acc.target
+    }
 
     # Entry Properties
     $entry.Properties.ShowToolbar = $true

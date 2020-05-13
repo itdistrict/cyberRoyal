@@ -246,6 +246,12 @@ RDP Settings like Key Passthrough (fetch key combinations e.g. ALT+TAB in the RD
 
 ![appDefaultsRDP](./resources/appDefaultsRDP.png)
 
+## Planned Features
+
+maybe in future releases
+- More customizable PlatformMappings to support multiple connection components per platform
+- SFTP connection entries
+
 ## Known limitations
 
 - SAML auth method for PVWA will not work, apply a groupBasedMode or allAccountsMode

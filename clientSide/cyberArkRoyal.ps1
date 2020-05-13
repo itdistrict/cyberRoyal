@@ -264,7 +264,7 @@ function Get-ConnectionWEB($acc, $plat) {
     $entry.Username = $caUser
 
     # Web URI overwrite if defined
-    if (![string]::isNullOrEmpty($plat.webOverwriteUrl)) {  
+    if (![string]::isNullOrEmpty($plat.webOverwriteUri)) {  
         $entry.URL = "$( $plat.webProtocol)://" + $plat.webOverwriteUri
     } 
     else {     

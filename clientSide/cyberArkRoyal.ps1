@@ -138,10 +138,17 @@ function Invoke-Logon() {
     $header.Add('Content-type', 'application/json') 
     $logonURL = $baseURL + '/api/auth/' + $authMethod + '/Logon'
     $logonData = @{ username = $caUser; password = $caPass } | ConvertTo-Json
-    $logonResult = $( Invoke-WebRequest -Uri $logonURL -Headers $header -Method Post -UseBasicParsing -Body $logonData ).content | ConvertFrom-Json 
+    try {
+        $logonResult = $( Invoke-WebRequest -Uri $logonURL -Headers $header -Method Post -UseBasicParsing -Body $logonData ).content | ConvertFrom-Json 
+    } 
+    catch { 
+        Write-Error "Did you define the right credentials to login? "
+    }
     $header.Add('Authorization' , $logonResult) 
 }
-
+function Invoke-Logoff() {
+    try { Invoke-WebRequest -Uri $( $baseURL + '/api/auth/Logoff') -Headers $header -UseBasicParsing -Method Post | Out-Null } catch { }
+}
 function Get-Safes() {
     $safeURL = $baseURL + '/WebServices/PIMServices.svc/Safes'
     $safesList = $( Invoke-WebRequest -Uri $safeURL -Headers $header -Method Get -UseBasicParsing).content | ConvertFrom-Json
@@ -185,10 +192,6 @@ function Get-AccountsFromSafes($safes) {
         }
     }
     return $accountsList        
-}
-
-function Invoke-Logoff() {
-    Invoke-WebRequest -Uri $( $baseURL + '/api/auth/Logoff') -Headers $header -UseBasicParsing -Method Post | Out-Null
 }
 
 function Get-ConnectionRDP($acc, $plat) {

@@ -100,7 +100,7 @@ The script with the Log-Module provides some log information in the same scriptf
 
 ## Setup ClientSide
 
-Prepare the ClientSide script with the necessary paramaters, see [Link to Header](#ClientSide-script-switches) and  [Link to Header](#ClientSide-script-settings)
+Prepare the ClientSide script with the necessary paramaters, see [client switches](#ClientSide-script-switches) and [client settings](#ClientSide-script-settings)
 
 ### RoyalTS Dynamic Folder
 

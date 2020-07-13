@@ -2,26 +2,18 @@
 ##       Royal TS meets CyberArk       ##
 ##          www.itdistrict.ch          ##
 #########################################
-
+#       ClientSide Script               #
 #########################################
 #            Settings                   #
 #########################################
-# See README.md for all setting values
+# See README.md for all setting values  #
 #########################################
-
-# if filter is enabled, then only take accounts from safeNames where this regex match success
-$safeFilter = $false
-$safeFilterRegex = ".*_OnylThisSafes.*"
-
-# if groupBasedMode is enabled, the script gets connection entries by users AD group memberships where regex with match group[1] matches a safeNames, PVWA API login is not used
-$groupBasedMode = $false
-$groupBasedSafeRegex = "CN=.*?(SafeName),OU=.*"
-
-# if allAccountsMode is enabled, the script gets all connections entries from all safes and accounts in the list, filters still apply, PVWA API login is not used
-$allAccountsMode = $false
 
 # leave empty if none or enter URL to the json settings like "https://WebHost/ScriptData/cyberArkRoyalSettings.json"
 $webSettingsUrl = ""
+
+# enable or disable SSL/TLS certificate validation callback in PowerShell (.NET) for the web calls
+$psCertValidation = $false
 
 # switch debug mode on (only directly in powershell, cannot be used in RoyalTS)
 $debugOn = $false
@@ -36,12 +28,17 @@ $settings = @"
     "psmSshAddress": "YOUR-PSM-SSH",
     "psmWebAddress": "YOUR-PSM-WEB",
     "psmWebPort": 8080,
-    "useWebPluginWin": "f008c2f0-5fb3-4c5e-a8eb-8072c1183088",
+    "allAccountsMode": 0,
+    "safeFilter": 0,
+    "safeFilterRegex": ".*_OnylThisSafes.*",
+    "groupBasedMode": 0,
+    "groupBasedSafeRegex": "CN=.*?(SafeName),OU=.*",
     "folderCreation": "safe.name",
     "entryName": "named",
     "credentialsFromParent": 1,
     "enableNLA": 0,
     "excludeAccounts": [ "guest" ],
+    "useWebPluginWin": "f008c2f0-5fb3-4c5e-a8eb-8072c1183088",
     "platformMappings": {
         "UnixSSH": {
             "royalTsConnection": "SSH",
@@ -53,6 +50,7 @@ $settings = @"
             "connectionComponent": "PSM-RDP"
         },
         "ExchangeDomainUser": {
+            "replacePsm": "ANOTHER-PSM-ADDRESS",
             "royalTsConnection": "RDP",
             "accountType": "domain",
             "connectionComponent": "PSM-WebApp-Exchange-EPC"
@@ -70,7 +68,7 @@ $settings = @"
             "accountType": "local",
             "webProtocol": "https",
             "webOverwriteUri": "",
-            "webInputObject": 'input#i0116'
+            "webInputObject": "input#i0116"
         }
     }
 }
@@ -81,8 +79,7 @@ $settings = @"
 #########################################
 [System.Net.WebRequest]::DefaultWebProxy.Credentials = [System.Net.CredentialCache]::DefaultCredentials
 [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.SecurityProtocolType]::Tls12 -bor [System.Net.SecurityProtocolType]::Tls11
-[System.Net.ServicePointManager]::ServerCertificateValidationCallback = { $true }
-# in case of problems with underlaying tls connection use: [System.Net.ServicePointManager]::ServerCertificateValidationCallback = $null
+if ($psCertValidation) { [System.Net.ServicePointManager]::ServerCertificateValidationCallback = { $true } } else { [System.Net.ServicePointManager]::ServerCertificateValidationCallback = $null }
 
 if ($debugOn) { 
     $stopWatch = [system.diagnostics.stopwatch]::StartNew() 
@@ -98,7 +95,7 @@ else {
 #               Variables               #
 #########################################
 # get user from RoyalTs User context or defined from Credentials variable
-if ($groupBasedMode) {
+if ($settings.groupBasedMode) {
     $caUser = $env:username
 }
 else {
@@ -156,7 +153,7 @@ function Get-Safes() {
     $safes = @{ }
     foreach ($safe in $safesList.GetSafesResult) {
         $safeName = $safe.SafeName
-        $safes.Add( $safeName, $safe)
+        $safes[ $safeName ] = $safe
     }
     if ($debugOn) { Write-Host $stopWatch.Elapsed + " wrote safes to HashTable" }
 
@@ -169,10 +166,10 @@ function Get-SafeGroups() {
 
     $safes = @{ }
     foreach ($group in $groups) {
-        $match = [regex]::Match($group, $groupBasedSafeRegex)
+        $match = [regex]::Match($group, $settings.groupBasedSafeRegex)
         if ($match.Success) {
             $safeName = $match.Groups[1].ToString()
-            $safes.Add( $safeName, $group)
+            $safes[ $safeName ] = $group
         }
     }
     return $safes
@@ -184,10 +181,10 @@ function Get-AccountsFromSafes($safes) {
         $accountURL = $baseURL + '/api/Accounts?search=' + $safe.SafeName
         $accounts = $( Invoke-WebRequest -Uri $accountURL -Headers $header -Method Get -UseBasicParsing).content | ConvertFrom-Json
         if ($null -ne $accounts.value -and $accounts.value.Length -gt 0) {
-            $accountsList.Add( $safe.SafeName, @{ } )
-            $accountsList[ $safe.SafeName].Add( "safe", $safe )
+            $accountsList[ $safe.SafeName ] = @{ }
+            $accountsList[ $safe.SafeName ][ "safe" ] = $safe
             foreach ($account in $accounts.value) {
-                $accountsList[ $safe.SafeName].Add( $account.id, $account )
+                $accountsList[ $safe.SafeName ][ $account.id ] = $account
             }
         }
     }
@@ -197,9 +194,11 @@ function Get-AccountsFromSafes($safes) {
 function Get-ConnectionRDP($acc, $plat) {
     $entry = @{ }
     $entry.Properties = @{ }
-
+    $entry.ColorFromParent = $true
+    
     $entry.Type = 'RemoteDesktopConnection'
-    $entry.ComputerName = $psmRdpAddress
+    if ([string]::isNullOrEmpty( $plat.replacePsm )) { $entry.ComputerName = $psmRdpAddress } else { $entry.ComputerName = $plat.replacePsm }
+
     if ($settings.credentialsFromParent) { $entry.CredentialsFromParent = $true } else { $entry.Username = $caUser }
     if ($settings.enableNLA) { $entry.NLA = 'true' } else { $entry.NLA = 'false' }
     if ($plat.accountType -eq "domain") {
@@ -242,7 +241,8 @@ function Get-ConnectionSSH($acc, $plat) {
     $entry = @{ }
     $entry.Type = 'TerminalConnection'
     $entry.TerminalConnectionType = 'SSH'
-
+    $entry.ColorFromParent = $true
+    
     # Entry Name
     if (![string]::isNullOrEmpty($plat.replaceName)) {
         $entry.Name = $plat.replaceName
@@ -254,7 +254,9 @@ function Get-ConnectionSSH($acc, $plat) {
             Default { $entry.Name = $plat.namePrefix + $acc.target + $plat.namePostfix }
         }
     }
-    $entry.ComputerName = $caUser + '@' + $acc.userName + '@' + $acc.target + '@' + $psmSshAddress
+    if ([string]::isNullOrEmpty($plat.replacePsm)) { $entry.ComputerName = $caUser + '@' + $acc.userName + '@' + $acc.target + '@' + $psmSshAddress } 
+    else { $entry.ComputerName = $caUser + '@' + $acc.userName + '@' + $acc.target + '@' + $plat.replacePsm }
+    
     if ($settings.credentialsFromParent) { $entry.CredentialsFromParent = $true } else { $entry.Username = $caUser }
     return $entry
 }
@@ -265,26 +267,28 @@ function Get-ConnectionWEB($acc, $plat) {
 
     $entry.Type = 'WebConnection'
     $entry.Username = $caUser
-
+    $entry.ColorFromParent = $true
+    
     # Web URI overwrite if defined
     if (![string]::isNullOrEmpty($plat.webOverwriteUri)) {  
-        $entry.URL = "$( $plat.webProtocol)://" + $plat.webOverwriteUri
+        $entry.URL = "$( $plat.webProtocol )://" + $plat.webOverwriteUri
     } 
     else {     
-        $entry.URL = "$( $plat.webProtocol)://" + $acc.target
+        $entry.URL = "$( $plat.webProtocol )://" + $acc.target
     }
 
     # Entry Properties
     $entry.Properties.ShowToolbar = $true
     $entry.Properties.IgnoreCertificateErrors = $true
     $entry.Properties.UseDedicatedEngine = $true
-    $entry.Properties.ProxyHostname = $psmWebAddress
+    if ([string]::isNullOrEmpty($plat.replacePsm)) { $entry.Properties.ProxyHostname = $psmWebAddress }
+    else { $entry.Properties.ProxyHostname = $plat.replacePsm }
     $entry.Properties.ProxyPort = $psmWebPort
     $entry.Properties.ProxyMode = 1
 
     # AutoFill Implementations
     $webApp = "default"
-    if (![string]::isNullOrEmpty($acc.platformAccountProperties.WebApplicationID)) {
+    if (![string]::isNullOrEmpty( $acc.platformAccountProperties.WebApplicationID )) {
         $webApp = $acc.platformAccountProperties.WebApplicationID 
     }
 
@@ -335,20 +339,20 @@ function Get-ConnectionEntry($accountDetail, $platformSetting) {
 #########################################
 #                MAIN                   #
 #########################################
-if ($allAccountsMode) { 
+if ($settings.allAccountsMode) { 
     $safes = @{ } 
     if ($debugOn) { Write-Host $stopWatch.Elapsed + " applying all accounts" }
 }
-elseif ($groupBasedMode) {
+elseif ($settings.groupBasedMode) {
     $safes = Get-SafeGroups
-    if ($debugOn) { Write-Host $stopWatch.Elapsed + " catched group based safes: $( $safes.Count)" }
+    if ($debugOn) { Write-Host $stopWatch.Elapsed + " catched group based safes: $( $safes.Count )" }
 }
 else {
     Invoke-Logon
     if ($debugOn) { Write-Host $stopWatch.Elapsed + " login done" }
 
     $safes = Get-Safes 
-    if ($debugOn) { Write-Host $stopWatch.Elapsed + " catched safes: $( $safes.Count)" }
+    if ($debugOn) { Write-Host $stopWatch.Elapsed + " catched safes: $( $safes.Count )" }
 }
 
 # get the prepared data file and remove BOM (thanks to .NET, IIS) if necessary
@@ -368,7 +372,7 @@ switch ($settings.folderCreation) {
 # SafesAndAccountsList into a hashtable with key = order
 $safesAndAccountsTable = @{ }
 foreach ($entry in $sortedSafesAndAccountsList) { 
-    $safesAndAccountsTable[ $safesAndAccountsTable.Count] = @($entry.Name, $entry.Value)
+    $safesAndAccountsTable[ $safesAndAccountsTable.Count ] = @($entry.Name, $entry.Value)
 }
 if ($debugOn) { Write-Host $stopWatch.Elapsed + " wrote and sorted safesAndAccounts to HashTable" }
 
@@ -376,10 +380,10 @@ foreach ($safeKey in $safesAndAccountsTable.getEnumerator() | Sort-Object Key) {
     $safeAndAccounts = $safeKey.Value
     
     # match safe or continue
-    if ( !$allAccountsMode -and !$safes.ContainsKey( $safeAndAccounts.safe.SafeName) ) { continue }
+    if ( !$settings.allAccountsMode -and !$safes.ContainsKey( $safeAndAccounts.safe.SafeName ) ) { continue }
 
     # apply safeFilter
-    if ($safeFilter -and !([regex]::Match($safeAndAccounts.safe.SafeName, $safeFilterRegex).Success )) { continue } 
+    if ($settings.safeFilter -and !([regex]::Match( $safeAndAccounts.safe.SafeName, $settings.safeFilterRegex ).Success )) { continue } 
 
     if ($settings.folderCreation -eq "none") {
         $objects = @()
@@ -388,6 +392,8 @@ foreach ($safeKey in $safesAndAccountsTable.getEnumerator() | Sort-Object Key) {
         $folder = @{ }
         $folder.Objects = @()
         $folder.Type = 'Folder'
+        $folder.ColorFromParent = $true
+
         if ($settings.credentialsFromParent) { $folder.CredentialsFromParent = $true }
 
         switch ($settings.folderCreation) {
@@ -455,5 +461,5 @@ else {
 }
 
 # logoff if required
-if (!$groupBasedMode -and !$allAccountsMode) { Invoke-Logoff }
+if (!$settings.groupBasedMode -and !$settings.allAccountsMode) { Invoke-Logoff }
 if ($debugOn) { Write-Host $stopWatch.Elapsed + " finished" }

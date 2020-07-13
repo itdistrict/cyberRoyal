@@ -2,9 +2,7 @@
 ##       Royal TS meets CyberArk       ##
 ##          www.itdistrict.ch          ##
 #########################################
-#       ClientSide Script               #
-#########################################
-#            Settings                   #
+#         ClientSide Script             #
 #########################################
 # See README.md for all setting values  #
 #########################################
@@ -94,24 +92,14 @@ else {
 #########################################
 #               Variables               #
 #########################################
-# get user from RoyalTs User context or defined from Credentials variable
-if ($settings.groupBasedMode) {
-    $caUser = $env:username
-}
-else {
-    $caUser = '$EffectiveUsername$'
-    $caPass = '$EffectivePassword$'
-}
-
 # get settings from web if available
 if (![string]::isNullOrEmpty($webSettingsUrl)) {
     $settings = Invoke-WebRequest -Uri $webSettingsUrl -Method GET -UseBasicParsing -ContentType 'application/json; charset=utf-8'
 }
 
-
 # get settings and form a platformMapping hashtable with key = platformname
-$platformMapping = @{ }
 $settings = $settings | ConvertFrom-Json
+$platformMapping = @{ }
 foreach ( $prop in $settings.platformMappings.psobject.properties ) { $platformMapping[ $prop.Name ] = $prop.Value }
 
 $baseURL = $settings.pvwaUrl
@@ -123,7 +111,16 @@ $psmSshAddress = $settings.psmSshAddress
 $psmWebAddress = $settings.psmWebAddress
 $psmWebPort = $settings.psmWebPort
 
-# RoyalJSON response
+# get user from RoyalTs User context or defined from Credentials variable
+if ($settings.groupBasedMode) {
+    $caUser = $env:username
+}
+else {
+    $caUser = '$EffectiveUsername$'
+    $caPass = '$EffectivePassword$'
+}
+
+# prepare RoyalJSON response
 $json_response = @{ }
 $json_response.Objects = @()
 

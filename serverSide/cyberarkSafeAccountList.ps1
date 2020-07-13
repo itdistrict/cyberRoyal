@@ -2,13 +2,16 @@
 ##       Royal TS meets CyberArk       ##
 ##          www.itdistrict.ch          ##
 #########################################
-#       ServerSide Script               #
-#########################################
-#            Settings                   #
+#         ServerSide Script             #
 #########################################
 # See README.md for all setting values  #
 #########################################
 
+#########################################
+#          Customisations               #
+#########################################
+
+#########################################
 # URL to PVWA PasswordVault Site
 $pvwaUrl = "https://127.0.0.1/PasswordVault"
 

@@ -200,6 +200,8 @@ function Get-ConnectionRDP($acc, $plat) {
 
     $entry.Type = 'RemoteDesktopConnection'
     $entry.ComputerName = $psmRdpAddress
+    $entry.ColorFromParent = $true
+    
     if ($settings.credentialsFromParent) { $entry.CredentialsFromParent = $true } else { $entry.Username = $caUser }
     if ($settings.enableNLA) { $entry.NLA = 'true' } else { $entry.NLA = 'false' }
     if ($plat.accountType -eq "domain") {
@@ -242,6 +244,7 @@ function Get-ConnectionSSH($acc, $plat) {
     $entry = @{ }
     $entry.Type = 'TerminalConnection'
     $entry.TerminalConnectionType = 'SSH'
+    $entry.ColorFromParent = $true
 
     # Entry Name
     if (![string]::isNullOrEmpty($plat.replaceName)) {
@@ -265,6 +268,7 @@ function Get-ConnectionWEB($acc, $plat) {
 
     $entry.Type = 'WebConnection'
     $entry.Username = $caUser
+    $entry.ColorFromParent = $true
 
     # Web URI overwrite if defined
     if (![string]::isNullOrEmpty($plat.webOverwriteUri)) {  
@@ -388,6 +392,8 @@ foreach ($safeKey in $safesAndAccountsTable.getEnumerator() | Sort-Object Key) {
         $folder = @{ }
         $folder.Objects = @()
         $folder.Type = 'Folder'
+        $entry.ColorFromParent = $true
+        
         if ($settings.credentialsFromParent) { $folder.CredentialsFromParent = $true }
 
         switch ($settings.folderCreation) {

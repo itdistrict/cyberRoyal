@@ -1,11 +1,12 @@
 #########################################
-##  CyberArk fetch Safes and Accounts  ##
+##       Royal TS meets CyberArk       ##
+##          www.itdistrict.ch          ##
 #########################################
-
+#       ServerSide Script               #
 #########################################
 #            Settings                   #
 #########################################
-# See README.md for all setting values
+# See README.md for all setting values  #
 #########################################
 
 # URL to PVWA PasswordVault Site
@@ -19,6 +20,9 @@ $apiUsername = "Auditor"
 $apiPasswordFile = "C:\scripts\secret.ini"
 $apiPasswordKey = "C:\scripts\keys\secret.key"
 
+# enable or disable SSL/TLS certificate validation callback in PowerShell (.NET) for the web calls
+$psCertValidation = $false
+
 # Turn debug on to see more console output and get more details in log
 $debugOn = $false
 
@@ -29,7 +33,7 @@ if ($debugOn) { $stopWatch = [system.diagnostics.stopwatch]::StartNew() }
 #########################################
 [System.Net.WebRequest]::DefaultWebProxy.Credentials = [System.Net.CredentialCache]::DefaultCredentials
 [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.SecurityProtocolType]::Tls12 -bor [System.Net.SecurityProtocolType]::Tls11
-[System.Net.ServicePointManager]::ServerCertificateValidationCallback = { $true }
+if ($psCertValidation) { [System.Net.ServicePointManager]::ServerCertificateValidationCallback = { $true } } else { [System.Net.ServicePointManager]::ServerCertificateValidationCallback = $null }
 
 #########################################
 #               Variables               #

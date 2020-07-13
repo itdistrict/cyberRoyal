@@ -1,0 +1,67 @@
+{
+    "pvwaUrl": "https://pvwa.lab.loc/PasswordVault",
+    "dataUrl": "https://pvwa.lab.loc/ScriptData/cyberArkSafeAccountList.json",
+    "authMethod": "LDAP",
+    "psmRdpAddress": "psm.lab.loc",
+    "psmSshAddress": "psmp.lab.loc",
+    "psmWebAddress": "psmw.lab.loc",
+    "psmWebPort": 8080,
+    "allAccountsMode": 0,
+    "safeFilter": 0,
+    "safeFilterRegex": ".*_LABOR",
+    "groupBasedMode": 1,
+    "groupBasedSafeRegex": "CN=.*?(T[0|1|2]_[P|T]_.+?)-[M|U]?,OU=.*",
+    "folderCreation": "safe.name",
+    "entryName": "named",
+    "credentialsFromParent": 1,
+    "enableNLA": 1,
+    "excludeAccounts": [
+        "guest"
+    ],
+    "useWebPluginWin": "f008c2f0-5fb3-4c5e-a8eb-8072c1183088",
+    "platformMappings": {
+        "unix_ssh": {
+            "royalTsConnection": "SSH",
+            "accountType": "local"
+        },
+        "win_domain": {
+            "royalTsConnection": "RDP",
+            "accountType": "domain",
+            "connectionComponent": "PSM-RDP"
+        },
+        "win_local": {
+            "replacePsm": "psm2.lab.loc",
+            "namePostfix": "- PSM2",
+            "royalTsConnection": "RDP",
+            "accountType": "local",
+            "connectionComponent": "PSM-RDP"
+        },
+        "T1_T_Win_Domain": {
+            "royalTsConnection": "RDP",
+            "accountType": "domain",
+            "connectionComponent": "PSM-RDP"
+        },
+        "T1_T_Win_Local": {
+            "replacePsm": "psm2.lab.loc",
+            "namePostfix": "- PSM2",
+            "royalTsConnection": "RDP",
+            "accountType": "local",
+            "connectionComponent": "PSM-RDP"
+        },
+        "web_palo": {
+            "royalTsConnection": "RDP",
+            "accountType": "local",
+            "connectionComponent": "PSM-PaloWeb"
+        },
+        "web_azure": {
+            "replaceName": "",
+            "namePrefix": "Azure - ",
+            "namePostfix": "",
+            "royalTsConnection": "WEB",
+            "accountType": "local",
+            "webProtocol": "https",
+            "webOverwriteUri": "portal.azure.com/#blade/HubsExtension/BrowseResource/resourceType/Microsoft.Network%2FdnsZones",
+            "webInputObject": "input#i0116"
+        }
+    }
+}

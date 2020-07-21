@@ -131,7 +131,7 @@ function Invoke-Logon() {
     $global:header = @{ }
     $header.Add('Content-type', 'application/json') 
     $logonURL = $baseURL + '/api/auth/' + $authMethod + '/Logon'
-    $logonData = @{ username = $caUser; password = $caPass } | ConvertTo-Json
+    $logonData = @{ username = $caUser; password = $caPass; concurrentSession = $true; } | ConvertTo-Json
     try {
         $logonResult = $( Invoke-WebRequest -Uri $logonURL -Headers $header -Method Post -UseBasicParsing -Body $logonData ).content | ConvertFrom-Json 
     } 

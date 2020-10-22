@@ -117,7 +117,9 @@ if ($settings.groupBasedMode) {
 }
 else {
     $caUser = '$EffectiveUsername$'
-    $caPass = '$EffectivePassword$'
+    $caPass = @'
+$EffectivePassword$
+'@
 }
 
 # prepare RoyalJSON response

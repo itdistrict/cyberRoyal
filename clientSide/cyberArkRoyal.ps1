@@ -33,47 +33,47 @@ $settings = @"
     "folderCreation": "safe.name",
     "entryName": "named",
     "enableNLA": 0,
-    "excludeAccounts": [ "guest" ],
+    "excludeAccounts": ["guest"],
     "useWebPluginWin": "f008c2f0-5fb3-4c5e-a8eb-8072c1183088",
     "platformMappings": {
-        "UnixSSH": {
-            "connections": [ { "type": "SSH", "components" : ["PSMP-SSH"]  } ]
-        },
-        "WindowsDomain": {
-            "psmRemoteMachine": 1,
-            "connections": [
-                { "type": "RDP", "components" : ["PSM-RDP","PSM-PaloWeb"]  },
-                { "type": "SSH", "components" : ["PSMP-SSH"]  }
-            ]
-        },
-        "ExchangeDomainUser": {
-            "replacePsm": "ANOTHER-PSM-ADDRESS",
-            "connections": [ { "type": "RDP", "components" : ["PSM-RDP"]  } ]
-        },
-        "Fortigate": {
-            "connections": [
-                { "type": "RDP", "components" : ["PSM-FortiWeb"]  },
-                { "type": "SSH", "components" : ["PSMP-SSH"]  }
-            ]
-        },
-        "WindowsServerLocal": {
-            "replaceName": "",
-            "replaceRegex": "@domain.acme.com",
-            "namePrefix": "Local - ",
-            "namePostfix": "",
-            "psmRemoteMachine": 0,
-            "entryName": "full",
-            "connections": [ { "type": "RDP", "components" : ["PSM-RDP"]  } ]
-        },
-        "AzureWebAccount":{
-            "namePrefix": "Azure - ",
-            "webProtocol": "https",
-            "webOverwriteUri": "",
-            "webInputObject": "input#i0116",
-            "connections": [ { "type": "WEB", "components" : ["AzureWebsite"]  } ]
-        }
+      "UnixSSH": {
+        "connections": [{ "type": "SSH", "components": ["PSMP-SSH"] }]
+      },
+      "WindowsDomain": {
+        "psmRemoteMachine": 1,
+        "connections": [
+          { "type": "RDP", "components": ["PSM-RDP", "PSM-PaloWeb"] },
+          { "type": "SSH", "components": ["PSMP-SSH"] }
+        ]
+      },
+      "ExchangeDomainUser": {
+        "replacePsm": "ANOTHER-PSM-ADDRESS",
+        "connections": [{ "type": "RDP", "components": ["PSM-RDP"] }]
+      },
+      "Fortigate": {
+        "connections": [
+          { "type": "RDP", "components": ["PSM-FortiWeb"] },
+          { "type": "SSH", "components": ["PSMP-SSH"] }
+        ]
+      },
+      "WindowsServerLocal": {
+        "replaceName": "",
+        "replaceRegex": "@domain.acme.com",
+        "namePrefix": "Local - ",
+        "namePostfix": "",
+        "psmRemoteMachine": 0,
+        "entryName": "full",
+        "connections": [{ "type": "RDP", "components": ["PSM-RDP"] }]
+      },
+      "AzureWebAccount": {
+        "namePrefix": "Azure - ",
+        "webProtocol": "https",
+        "webOverwriteUri": "",
+        "webInputObject": "input#i0116",
+        "connections": [{ "type": "WEB", "components": ["AzureWebsite"] }]
+      }
     }
-}
+  }  
 "@
 
 

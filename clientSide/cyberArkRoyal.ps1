@@ -209,8 +209,8 @@ function Get-ConnectionRDP($acc, $plat, $comp) {
 
     $entry.Username = $caUser
     if ($settings.enableNLA) { $entry.NLA = 'true' } else { $entry.NLA = 'false' }
-    if ($plat.remoteMachines) {
-        if ($plat.connectionComponent -ne "PSM-RDP") { $componentAddition = ' - ' + $comp }
+    if ($plat.psmRemoteMachine) {
+        if ($comp -ne "PSM-RDP") { $componentAddition = ' - ' + $comp }
         # Entry Name
         if (![string]::isNullOrEmpty($plat.replaceName)) { $entry.Name = $plat.replaceName }
         else {

@@ -1,67 +1,56 @@
 {
-    "pvwaUrl": "https://pvwa.lab.loc/PasswordVault",
-    "dataUrl": "https://pvwa.lab.loc/ScriptData/cyberArkSafeAccountList.json",
+    "pvwaUrl": "https://YOUR-PVWA/PasswordVault",
+    "dataUrl": "https://YOUR-WEBHOST/ScriptData/cyberArkSafeAccountList.json",
     "authMethod": "LDAP",
-    "psmRdpAddress": "psm.lab.loc",
-    "psmSshAddress": "psmp.lab.loc",
-    "psmWebAddress": "psmw.lab.loc",
-    "psmWebPort": 8080,
+    "authPrompt": 1,
+    "psmRdpAddress": "YOUR-PSM-RDP",
+    "psmSshAddress": "YOUR-PSM-SSH",
     "allAccountsMode": 0,
     "safeFilter": 0,
-    "safeFilterRegex": ".*_LABOR",
-    "groupBasedMode": 1,
-    "groupBasedSafeRegex": "CN=.*?(T[0|1|2]_[P|T]_.+?)-[M|U]?,OU=.*",
+    "safeFilterRegex": ".*_OnylThisSafes.*",
+    "groupBasedMode": 0,
+    "groupBasedSafeRegex": "CN=.*?(SafeName),OU=.*",
     "folderCreation": "safe.name",
     "entryName": "named",
-    "credentialsFromParent": 1,
-    "enableNLA": 1,
-    "excludeAccounts": [
-        "guest"
-    ],
+    "enableNLA": 0,
+    "excludeAccounts": ["guest"],
     "useWebPluginWin": "f008c2f0-5fb3-4c5e-a8eb-8072c1183088",
     "platformMappings": {
-        "unix_ssh": {
-            "royalTsConnection": "SSH",
-            "accountType": "local"
+        "UnixSSH": {
+            "connections": [{ "type": "SSH", "components": ["PSMP-SSH"] }]
         },
-        "win_domain": {
-            "royalTsConnection": "RDP",
-            "accountType": "domain",
-            "connectionComponent": "PSM-RDP"
+        "WindowsDomain": {
+            "psmRemoteMachine": 1,
+            "connections": [
+                { "type": "RDP", "components": ["PSM-RDP", "PSM-PaloWeb"] },
+                { "type": "SSH", "components": ["PSMP-SSH"] }
+            ]
         },
-        "win_local": {
-            "replacePsm": "psm2.lab.loc",
-            "namePostfix": "- PSM2",
-            "royalTsConnection": "RDP",
-            "accountType": "local",
-            "connectionComponent": "PSM-RDP"
+        "ExchangeDomainUser": {
+            "replacePsm": "ANOTHER-PSM-ADDRESS",
+            "connections": [{ "type": "RDP", "components": ["PSM-RDP"] }]
         },
-        "T1_T_Win_Domain": {
-            "royalTsConnection": "RDP",
-            "accountType": "domain",
-            "connectionComponent": "PSM-RDP"
+        "Fortigate": {
+            "connections": [
+                { "type": "RDP", "components": ["PSM-FortiWeb"] },
+                { "type": "SSH", "components": ["PSMP-SSH"] }
+            ]
         },
-        "T1_T_Win_Local": {
-            "replacePsm": "psm2.lab.loc",
-            "namePostfix": "- PSM2",
-            "royalTsConnection": "RDP",
-            "accountType": "local",
-            "connectionComponent": "PSM-RDP"
-        },
-        "web_palo": {
-            "royalTsConnection": "RDP",
-            "accountType": "local",
-            "connectionComponent": "PSM-PaloWeb"
-        },
-        "web_azure": {
+        "WindowsServerLocal": {
             "replaceName": "",
-            "namePrefix": "Azure - ",
+            "replaceRegex": "@domain.acme.com",
+            "namePrefix": "Local - ",
             "namePostfix": "",
-            "royalTsConnection": "WEB",
-            "accountType": "local",
+            "psmRemoteMachine": 0,
+            "entryName": "full",
+            "connections": [{ "type": "RDP", "components": ["PSM-RDP"] }]
+        },
+        "AzureWebAccount": {
+            "namePrefix": "Azure - ",
             "webProtocol": "https",
-            "webOverwriteUri": "portal.azure.com/#blade/HubsExtension/BrowseResource/resourceType/Microsoft.Network%2FdnsZones",
-            "webInputObject": "input#i0116"
+            "webOverwriteUri": "",
+            "webInputObject": "input#i0116",
+            "connections": [{ "type": "WEB", "components": ["AzureWebsite"] }]
         }
     }
 }

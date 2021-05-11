@@ -276,6 +276,7 @@ RDP Settings like Key Passthrough (fetch key combinations e.g. ALT+TAB in the RD
 ## References
 
 RoyalTS JSON Format and properties: <https://content.royalapplications.com/Help/RoyalTS/V5/index.html?scripting_objectproperties_royalrdsconnection.htm>
+
 RoyalTS rJSON objects: <https://docs.royalapps.com/r2021/scripting/rjson/available-properties/royaljsonobject.html>
 
 ## Known limitations

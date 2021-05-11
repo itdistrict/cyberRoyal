@@ -19,18 +19,30 @@
         "UnixSSH": {
             "connections": [{ "type": "SSH", "components": ["PSMP-SSH"] }]
         },
+        "LinuxLinux": {
+            "replacePsm": "another-ssh-proxy",
+            "connections": [
+                { "type": "SSH", "components": ["PSMP-SSH"] },
+                { "type": "SFTP", "components": ["PSMP-SFTP"] }
+            ]
+        },
         "WindowsDomain": {
             "psmRemoteMachine": 1,
-            "connections": [
-                { "type": "RDP", "components": ["PSM-RDP", "PSM-PaloWeb"] },
-                { "type": "SSH", "components": ["PSMP-SSH"] }
+            "connections": [{
+                    "type": "RDP",
+                    "components": ["PSM-RDP", "PSM-RDP-Console", "PSM-DSA"]
+                },
+                { "type": "SSH", "components": ["PSMP-BadExample"] }
             ]
         },
         "ExchangeDomainUser": {
             "replacePsm": "ANOTHER-PSM-ADDRESS",
-            "connections": [{ "type": "RDP", "components": ["PSM-RDP"] }]
+            "connections": [
+                { "type": "RDP", "components": ["PSM-RDP", "PSM-WebECP"] }
+            ]
         },
         "Fortigate": {
+            "color": "#FF0000",
             "connections": [
                 { "type": "RDP", "components": ["PSM-FortiWeb"] },
                 { "type": "SSH", "components": ["PSMP-SSH"] }

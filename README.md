@@ -19,7 +19,7 @@
       - [Platform Mappings](#platform-mappings)
     - [Use AD groups instead of Safes API Query](#use-ad-groups-instead-of-safes-api-query)
   - [RoyalTS recommended settings](#royalts-recommended-settings)
-  - [Planned Features](#planned-features)
+  - [References](#references)
   - [Known limitations](#known-limitations)
 
 ## Overview
@@ -167,54 +167,74 @@ Platform Mapping is required to match certain CyberArk Platform for accounts to 
 As platforms can be rather different and customized, the platformMappings provides the necessary parameters to create connections properly.
 The platformMappings entry is a dictionary of Platform-ID as unique Key and a Dictionary of parameters as Values
 
-| Parameter       | Values                                               | Description                                                                                                                                                                                                                                                                                                                                                                                      |
-| --------------- | ---------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| connections     | Array of connection entries with type and components | connection entry like {"type":"RDP", components:["PSM-RDP","PSM-MMC"]} where "type" can be SSH, RDP, WEB and component should match to a CyberArk connection component for the corresponding platform. Therefore it is possible to create multiple connection with the same account for different connection components like a Firewall account to create a connection via RDP Web but also SSH. |
-| accountType     | local, domain                                        | Defines if an account is local "username -> address" oder domain with "username@logonDomain -> RemoteMachineAdress as target" in the connection entry "psm /a and /t parameter"                                                                                                                                                                                                                  |
-| replacePsm      | string                                               | Replaces the connection computername / PSM address for connections created from this specific platform with the specified value                                                                                                                                                                                                                                                                  |
-| replaceName     | string                                               | Replaces the connection entry name entirely with this value                                                                                                                                                                                                                                                                                                                                      |
-| replaceRegex    | string                                               | Replaces the connection entry name with this RegEx that matches. Good to filter out FQDN in server names e.g. Regex: "@domain.acme.com"                                                                                                                                                                                                                                                          |
-| namePrefix      | string                                               | Prefix in the connection entry name                                                                                                                                                                                                                                                                                                                                                              |
-| namePostfix     | string                                               | Postfix in the connection entry name                                                                                                                                                                                                                                                                                                                                                             |
-| webProtocol     | https/https                                          | only used in PSM for Web connection entries as target address protocol to use. Target address are mostly only an IP or FQDN                                                                                                                                                                                                                                                                      |
-| webOverwriteUri | URI as string                                        | only used in PSM for Web connection entries as target URI (like: acme.com/xyc) - The URL is combined with the webProtocol + webOverwriteUri. If not defined or empty, URI is taken from the account address.                                                                                                                                                                                     |
-| webInputObject  | string                                               | used as Input Form object where the conneciont entry will fill in "yourUsername:accountUsername" for the PSM for Web Proxy process                                                                                                                                                                                                                                                               |
+| Parameter         | Values                                               | Description                                                                                                                                                                                                                                                                                                                                                                                            |
+| ----------------- | ---------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| connections       | Array of connection entries with type and components | connection entry like {"type":"RDP", components:["PSM-RDP","PSM-MMC"]} where "type" can be SSH, SFTP, RDP, WEB and component should match to a CyberArk connection component for the corresponding platform. Therefore it is possible to create multiple connection with the same account for different connection components like a Firewall account to create a connection via RDP Web but also SSH. |
+| accountType       | local, domain                                        | Defines if an account is local "username -> address" oder domain with "username@logonDomain -> RemoteMachineAdress as target" in the connection entry "psm /a and /t parameter"                                                                                                                                                                                                                        |
+| replacePsm        | string                                               | Replaces the connection computername / PSM address for connections created from this specific platform with the specified value                                                                                                                                                                                                                                                                        |
+| replaceName       | string                                               | Replaces the connection entry name entirely with this value                                                                                                                                                                                                                                                                                                                                            |
+| replaceRegex      | string                                               | Replaces the connection entry name with this RegEx that matches. Good to filter out FQDN in server names e.g. Regex: "@domain.acme.com"                                                                                                                                                                                                                                                                |
+| namePrefix        | string                                               | Prefix in the connection entry name                                                                                                                                                                                                                                                                                                                                                                    |
+| namePostfix       | string                                               | Postfix in the connection entry name                                                                                                                                                                                                                                                                                                                                                                   |
+| psmRemoteMachine  | boolean                                              | Consideres PSM Remote Machines and create multiple entries per Remote Machine                                                                                                                                                                                                                                                                                                                          |
+| drivesRedirection | boolean                                              | Enables the Drives Redirection in the RDP Settings of the entry                                                                                                                                                                                                                                                                                                                                        |
+| replacePsm        | string                                               | Replaces the PSM address for this entries                                                                                                                                                                                                                                                                                                                                                              |
+| color             | string                                               | Sets an hexadecimal color (e.g. #FF0000 for red) for this entries                                                                                                                                                                                                                                                                                                                                      |
+| webProtocol       | https/https                                          | only used in PSM for Web connection entries as target address protocol to use. Target address are mostly only an IP or FQDN                                                                                                                                                                                                                                                                            |
+| webOverwriteUri   | URI as string                                        | only used in PSM for Web connection entries as target URI (like: acme.com/xyc) - The URL is combined with the webProtocol + webOverwriteUri. If not defined or empty, URI is taken from the account address.                                                                                                                                                                                           |
+| webInputObject    | string                                               | used as Input Form object where the conneciont entry will fill in "yourUsername:accountUsername" for the PSM for Web Proxy process                                                                                                                                                                                                                                                                     |
 
 Example of a platform mapping
 
 ```powershell
     "platformMappings": {
         "UnixSSH": {
-            "connections": [ { "type": "SSH", "components" : ["PSMP-SSH"]  } ]
+            "connections": [{ "type": "SSH", "components": ["PSMP-SSH"] }]
+        },
+        "LinuxLinux": {
+            "replacePsm": "another-ssh-proxy",
+            "connections": [
+                { "type": "SSH", "components": ["PSMP-SSH"] },
+                { "type": "SFTP", "components": ["PSMP-SFTP"] }
+            ]
         },
         "WindowsDomain": {
             "psmRemoteMachine": 1,
+            "connections": [{
+                    "type": "RDP",
+                    "components": ["PSM-RDP", "PSM-RDP-Console", "PSM-DSA"]
+                },
+                { "type": "SSH", "components": ["PSMP-BadExample"] }
+            ]
+        },
+        "ExchangeDomainUser": {
+            "replacePsm": "ANOTHER-PSM-ADDRESS",
             "connections": [
-                { "type": "RDP", "components" : ["PSM-RDP","PSM-MMC"]  }
+                { "type": "RDP", "components": ["PSM-RDP", "PSM-WebECP"] }
             ]
         },
         "Fortigate": {
+            "color": "#FF0000",
             "connections": [
-                { "type": "RDP", "components" : ["PSM-FortiWeb"]  },
-                { "type": "SSH", "components" : ["PSMP-SSH"]  }
+                { "type": "RDP", "components": ["PSM-FortiWeb"] },
+                { "type": "SSH", "components": ["PSMP-SSH"] }
             ]
         },
         "WindowsServerLocal": {
             "replaceName": "",
             "replaceRegex": "@domain.acme.com",
-            "replacePsm": "ANOTHER-PSM-ADDRESS",
             "namePrefix": "Local - ",
             "namePostfix": "",
             "psmRemoteMachine": 0,
             "entryName": "full",
-            "connections": [ { "type": "RDP", "components" : ["PSM-RDP"]  } ]
+            "connections": [{ "type": "RDP", "components": ["PSM-RDP"] }]
         },
-        "AzureWebAccount":{
+        "AzureWebAccount": {
             "namePrefix": "Azure - ",
             "webProtocol": "https",
             "webOverwriteUri": "",
             "webInputObject": "input#i0116",
-            "connections": [ { "type": "WEB", "components" : ["AzureWebsite"]  } ]
+            "connections": [{ "type": "WEB", "components": ["AzureWebsite"] }]
         }
     }
 ```
@@ -253,10 +273,10 @@ RDP Settings like Key Passthrough (fetch key combinations e.g. ALT+TAB in the RD
 
 ![appDefaultsRDP](./resources/appDefaultsRDP.png)
 
-## Planned Features
+## References
 
-maybe in future releases
-- SFTP connection entries
+RoyalTS JSON Format and properties: <https://content.royalapplications.com/Help/RoyalTS/V5/index.html?scripting_objectproperties_royalrdsconnection.htm>
+RoyalTS rJSON objects: <https://docs.royalapps.com/r2021/scripting/rjson/available-properties/royaljsonobject.html>
 
 ## Known limitations
 

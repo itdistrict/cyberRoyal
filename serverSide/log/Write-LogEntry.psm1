@@ -3,6 +3,8 @@
 ##          www.itdistrict.ch          ##
 #########################################
 # Write Log file and WinEventLog entries
+$maxSize = "100MB"
+
 function Write-LogEntry {
     param(
         [string] $LogFile,
@@ -15,6 +17,11 @@ function Write-LogEntry {
     $timeStamp = (Get-Date).toString("yyyy-MM-dd-HH-mm-ss")
 
     if ($LogFile -notlike "*.log") { $LogFile = $LogFile + ".log" }
+    if ((Get-Item $LogFile).length -gt $maxSize) { 
+        $archiveLogFile = "$LogFile.1" 
+        if (Test-Path -Path $archiveLogFile) { Remove-Item -Path $archiveLogFile }
+        Rename-Item -Path $LogFile -NewName $archiveLogFile
+    }
 
     if ($AsError) {
         $entryType = 'Error'

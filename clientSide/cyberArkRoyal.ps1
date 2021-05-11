@@ -39,18 +39,30 @@ $settings = @"
         "UnixSSH": {
             "connections": [{ "type": "SSH", "components": ["PSMP-SSH"] }]
         },
+        "LinuxLinux": {
+            "replacePsm": "another-ssh-proxy",
+            "connections": [
+                { "type": "SSH", "components": ["PSMP-SSH"] },
+                { "type": "SFTP", "components": ["PSMP-SFTP"] }
+            ]
+        },
         "WindowsDomain": {
             "psmRemoteMachine": 1,
-            "connections": [
-                { "type": "RDP", "components": ["PSM-RDP", "PSM-PaloWeb"] },
-                { "type": "SSH", "components": ["PSMP-SSH"] }
+            "connections": [{
+                    "type": "RDP",
+                    "components": ["PSM-RDP", "PSM-RDP-Console", "PSM-DSA"]
+                },
+                { "type": "SSH", "components": ["PSMP-BadExample"] }
             ]
         },
         "ExchangeDomainUser": {
             "replacePsm": "ANOTHER-PSM-ADDRESS",
-            "connections": [{ "type": "RDP", "components": ["PSM-RDP"] }]
+            "connections": [
+                { "type": "RDP", "components": ["PSM-RDP", "PSM-WebECP"] }
+            ]
         },
         "Fortigate": {
+            "color": "#FF0000",
             "connections": [
                 { "type": "RDP", "components": ["PSM-FortiWeb"] },
                 { "type": "SSH", "components": ["PSMP-SSH"] }
@@ -73,7 +85,7 @@ $settings = @"
             "connections": [{ "type": "WEB", "components": ["AzureWebsite"] }]
         }
     }
-}  
+}
 "@
 
 
@@ -129,8 +141,8 @@ if ([string]::isNullOrEmpty( $caUser )) { $caUser = $env:username }
 if ((!$groupBasedMode) -and $authPrompt) {	$caCredentials = Get-Credential -UserName $caUser -Message "Please enter your CyberArk Username and Password" }
 
 # prepare RoyalJSON response
-$json_response = @{ }
-$json_response.Objects = @()
+$response = @{ }
+$response.Objects = @()
 
 #########################################
 #              Functions                #
@@ -202,25 +214,26 @@ function Get-AccountsFromSafes($safes) {
 function Get-ConnectionRDP($acc, $plat, $comp) {
     $entry = @{ }
     $entry.Properties = @{ }
-    $entry.ColorFromParent = $true
-    
     $entry.Type = 'RemoteDesktopConnection'
+
+    if ([string]::isNullOrEmpty( $plat.color )) { $entry.ColorFromParent = $true } else { $entry.color = $plat.color }
     if ([string]::isNullOrEmpty( $plat.replacePsm )) { $entry.ComputerName = $psmRdpAddress } else { $entry.ComputerName = $plat.replacePsm }
 
     $entry.Username = $caUser
+    if ($plat.drivesRedirection) { $entry.Properties.RedirectDrives = 'true' }    
     if ($settings.enableNLA) { $entry.NLA = 'true' } else { $entry.NLA = 'false' }
     if ($plat.psmRemoteMachine) {
         if ($comp -ne "PSM-RDP") { $componentAddition = ' - ' + $comp }
         # Entry Name
-        if (![string]::isNullOrEmpty($plat.replaceName)) { $entry.Name = $plat.replaceName }
+        if (![string]::isNullOrEmpty( $plat.replaceName )) { $entry.Name = $plat.replaceName }
         else {
-            if (![string]::isNullOrEmpty($plat.entryName)) { $entryName = $plat.entryName } else { $entryName = $settings.entryName }
+            if (![string]::isNullOrEmpty( $plat.entryName )) { $entryName = $plat.entryName } else { $entryName = $settings.entryName }
             switch ($entryName) {
-                "full" { $entry.Name = $plat.namePrefix + $acc.target + ' - ' + $acc.userName + '@' + $acc.address + $comp + $plat.namePostfix } 
+                "full" { $entry.Name = $plat.namePrefix + $acc.userName + '@' + $acc.address + ' - ' + $acc.target + $componentAddition + $plat.namePostfix } 
                 "named" { $entry.Name = $plat.namePrefix + $acc.userName + '@' + $acc.target + $componentAddition + $plat.namePostfix }
                 Default { $entry.Name = $plat.namePrefix + $acc.target + $componentAddition + $plat.namePostfix }
             }
-            if (![string]::isNullOrEmpty($plat.replaceRegex)) { $entry.Name = $entry.Name -replace $plat.replaceRegex }
+            if (![string]::isNullOrEmpty( $plat.replaceRegex )) { $entry.Name = $entry.Name -replace $plat.replaceRegex }
         }
         $entry.Properties.StartProgram = 'psm /u ' + $acc.userName + '@' + $acc.address + ' /a ' + $acc.target + ' /c ' + $comp
     }
@@ -228,15 +241,15 @@ function Get-ConnectionRDP($acc, $plat, $comp) {
         if ($comp -ne "PSM-RDP") { $componentAddition = ' - ' + $comp }
 
         # Entry Name
-        if (![string]::isNullOrEmpty($plat.replaceName)) { $entry.Name = $plat.replaceName }
+        if (![string]::isNullOrEmpty( $plat.replaceName )) { $entry.Name = $plat.replaceName }
         else {
-            if (![string]::isNullOrEmpty($plat.entryName)) { $entryName = $plat.entryName } else { $entryName = $settings.entryName }
+            if (![string]::isNullOrEmpty( $plat.entryName )) { $entryName = $plat.entryName } else { $entryName = $settings.entryName }
             switch ($entryName) {
-                "full" { $entry.Name = $plat.namePrefix + $acc.userName + '@' + $acc.target + $comp + $plat.namePostfix } 
+                "full" { $entry.Name = $plat.namePrefix + $acc.userName + ' - ' + $acc.target + $componentAddition + $plat.namePostfix } 
                 "named" { $entry.Name = $plat.namePrefix + $acc.userName + '@' + $acc.target + $componentAddition + $plat.namePostfix }
                 Default { $entry.Name = $plat.namePrefix + $acc.target + $componentAddition + $plat.namePostfix }
             }
-            if (![string]::isNullOrEmpty($plat.replaceRegex)) { $entry.Name = $entry.Name -replace $plat.replaceRegex }
+            if (![string]::isNullOrEmpty( $plat.replaceRegex )) { $entry.Name = $entry.Name -replace $plat.replaceRegex }
         }
         $entry.Properties.StartProgram = 'psm /u ' + $acc.userName + ' /a ' + $acc.target + ' /c ' + $comp
     }
@@ -247,12 +260,14 @@ function Get-ConnectionSSH($acc, $plat, $comp) {
     $entry = @{ }
     $entry.Type = 'TerminalConnection'
     $entry.TerminalConnectionType = 'SSH'
-    $entry.ColorFromParent = $true
-    
+
+    if ([string]::isNullOrEmpty( $plat.color )) { $entry.ColorFromParent = $true } else { $entry.color = $plat.color }
+    if ([string]::isNullOrEmpty( $plat.replacePsm )) { $entry.ComputerName = $psmSshAddress } else { $entry.ComputerName = $plat.replacePsm }
+
     # Entry Name
-    if (![string]::isNullOrEmpty($plat.replaceName)) { $entry.Name = $plat.replaceName }
+    if (![string]::isNullOrEmpty( $plat.replaceName )) { $entry.Name = $plat.replaceName }
     else {
-        if (![string]::isNullOrEmpty($plat.entryName)) { $entryName = $plat.entryName } else { $entryName = $settings.entryName }
+        if (![string]::isNullOrEmpty( $plat.entryName )) { $entryName = $plat.entryName } else { $entryName = $settings.entryName }
         switch ($entryName) {
             "full" { $entry.Name = $plat.namePrefix + $acc.userName + '@' + $acc.target + ' - ' + $comp + $plat.namePostfix }  
             "named" { $entry.Name = $plat.namePrefix + $acc.userName + '@' + $acc.target + $plat.namePostfix } 
@@ -260,20 +275,43 @@ function Get-ConnectionSSH($acc, $plat, $comp) {
         }
         if (![string]::isNullOrEmpty($plat.replaceRegex)) { $entry.Name = $entry.Name -replace $plat.replaceRegex }
     }
-    if ([string]::isNullOrEmpty($plat.replacePsm)) { $entry.ComputerName = $psmSshAddress } 
-    else { $entry.ComputerName = $plat.replacePsm }
     $entry.UserName = $caUser + '@' + $acc.userName + '@' + $acc.target
     return $entry
 }
+
+function Get-ConnectionSFTP($acc, $plat, $comp) {
+    $entry = @{ }
+    $entry.Type = 'FileTransferConnection'
+    $entry.FileTransferConnectionType = 'SFTP'
+
+    if ([string]::isNullOrEmpty( $plat.color )) { $entry.ColorFromParent = $true } else { $entry.color = $plat.color }
+    if ([string]::isNullOrEmpty( $plat.replacePsm )) { $entry.ComputerName = $psmSshAddress } else { $entry.ComputerName = $plat.replacePsm }
+
+    # Entry Name
+    if (![string]::isNullOrEmpty( $plat.replaceName )) { $entry.Name = $plat.replaceName }
+    else {
+        if (![string]::isNullOrEmpty( $plat.entryName )) { $entryName = $plat.entryName } else { $entryName = $settings.entryName }
+        switch ($entryName) {
+            "full" { $entry.Name = $plat.namePrefix + $acc.userName + '@' + $acc.target + ' - ' + $comp + $plat.namePostfix }  
+            "named" { $entry.Name = $plat.namePrefix + $acc.userName + '@' + $acc.target + $plat.namePostfix } 
+            Default { $entry.Name = $plat.namePrefix + $acc.target + $plat.namePostfix }
+        }
+        if (![string]::isNullOrEmpty($plat.replaceRegex)) { $entry.Name = $entry.Name -replace $plat.replaceRegex }
+    }
+    $entry.CredentialMode = 4
+    $entry.CredentialName = $caUser + '@' + $acc.userName + '@' + $acc.target
+    return $entry
+}
+
 
 function Get-ConnectionWEB($acc, $plat, $comp) {
     $entry = @{ }
     $entry.Properties = @{ }
     $entry.Type = 'WebConnection'
-    $entry.ColorFromParent = $true
-    # Web URI overwrite if defined
-    if (![string]::isNullOrEmpty($plat.webProtocol)) { $webProtocol = $plat.webProtocol } else { $webProtocol = "https" }
-    if (![string]::isNullOrEmpty($plat.webOverwriteUri)) {  
+
+    if ([string]::isNullOrEmpty( $plat.color )) { $entry.ColorFromParent = $true } else { $entry.color = $plat.color }
+    if (![string]::isNullOrEmpty( $plat.webProtocol )) { $webProtocol = $plat.webProtocol } else { $webProtocol = "https" }
+    if (![string]::isNullOrEmpty( $plat.webOverwriteUri )) {  
         $entry.URL = "$( $webProtocol )://" + $plat.webOverwriteUri
     } 
     else {     
@@ -291,20 +329,20 @@ function Get-ConnectionWEB($acc, $plat, $comp) {
         $entry.AutoFillDelay = 1000
     }
     # Entry Name
-    if (![string]::isNullOrEmpty($plat.replaceName)) {
+    if (![string]::isNullOrEmpty( $plat.replaceName )) {
         $entry.Name = $plat.replaceName
     }
     else {
-        if (![string]::isNullOrEmpty($plat.entryName)) { $entryName = $plat.entryName } else { $entryName = $settings.entryName }
+        if (![string]::isNullOrEmpty( $plat.entryName )) { $entryName = $plat.entryName } else { $entryName = $settings.entryName }
         switch ($entryName) {
             "full" { $entry.Name = $plat.namePrefix + $acc.userName + '@' + $acc.target + ' - ' + $comp + $plat.namePostfix }
             "named" { $entry.Name = $plat.namePrefix + $acc.userName + '@' + $acc.target + $plat.namePostfix }
             Default { $entry.Name = $plat.namePrefix + $acc.target + $plat.namePostfix }
         }
-        if (![string]::isNullOrEmpty($plat.replaceRegex)) { $entry.Name = $entry.Name -replace $plat.replaceRegex }
+        if (![string]::isNullOrEmpty( $plat.replaceRegex )) { $entry.Name = $entry.Name -replace $plat.replaceRegex }
     }
     # Use Win WebPlugin ID instead of global config
-    if (![string]::isNullOrEmpty($settings.useWebPluginWin)) {
+    if (![string]::isNullOrEmpty( $settings.useWebPluginWin )) {
         $entry.Properties.UseGlobalPlugInWin = $false
         $entry.Properties.PlugInWin = $settings.useWebPluginWin
     }
@@ -314,6 +352,7 @@ function Get-ConnectionWEB($acc, $plat, $comp) {
 function Get-ConnectionEntry($accountDetail, $platformSetting, $connectionType, $component) {
     switch ($connectionType) {
         "SSH" { return Get-ConnectionSSH $accountDetail $platformSetting $component }
+        "SFTP" { return Get-ConnectionSFTP $accountDetail $platformSetting $component }
         "RDP" { return Get-ConnectionRDP $accountDetail $platformSetting $component }
         "WEB" { return Get-ConnectionWEB $accountDetail $platformSetting $component }
     }
@@ -426,23 +465,23 @@ foreach ($safeKey in $safesAndAccountsTable.getEnumerator() | Sort-Object Key) {
         }
     }
     if ($settings.folderCreation -eq "none" -and $objects.Length -gt 0) {
-        $json_response.objects += $objects
+        $response.objects += $objects
     }
     elseif ($folder.Objects.Length -gt 0) {
-        $json_response.objects += $folder
+        $response.objects += $folder
     }
 
 }
 
 # send RoyalJSON response
-$response = $json_response | ConvertTo-Json -Depth 100
+$jsonResponse = $response | ConvertTo-Json -Depth 100
 
 if ($debugOn) { 
-    Write-Host $stopWatch.Elapsed + " got $( $json_response.objects.Count) folders with $debugNrAccounts accounts and $debugNrServerConnections server connections" 
-    Out-File -FilePath "data.json" -Encoding UTF8 -InputObject $response
+    Write-Host $stopWatch.Elapsed + " got $( $jsonResponse.objects.Count) folders with $debugNrAccounts accounts and $debugNrServerConnections server connections" 
+    Out-File -FilePath "data.json" -Encoding UTF8 -InputObject $jsonResponse
 }
 else {
-    Write-Host $response
+    Write-Host $jsonResponse
 }
 
 # logoff if required

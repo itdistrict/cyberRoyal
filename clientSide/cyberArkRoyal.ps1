@@ -140,6 +140,7 @@ $EffectivePassword$
 if ([string]::isNullOrEmpty( $caUser )) { $caUser = $env:username }
 if ((!$groupBasedMode) -and $authPrompt) {	$caCredentials = Get-Credential -UserName $caUser -Message "Please enter your CyberArk Username and Password" }
 
+
 # prepare RoyalJSON response
 $response = @{ }
 $response.Objects = @()
@@ -173,7 +174,7 @@ function Get-Safes() {
         $safeName = $safe.SafeName
         $safes[ $safeName ] = $safe
     }
-    if ($debugOn) { Write-Host $stopWatch.Elapsed + " wrote safes to HashTable" }
+    if ($debugOn) { Write-Host $stopWatch.Elapsed + " fetched safes from API" }
 
     return $safes
 }
@@ -192,6 +193,8 @@ function Get-SafeGroups() {
             $safes[ $safeName ] = $group
         }
     }
+    if ($debugOn) { Write-Host $stopWatch.Elapsed + " fetched safes from groups" }
+
     return $safes
 }
 
@@ -367,45 +370,29 @@ if ($settings.allAccountsMode) {
 }
 elseif ($settings.groupBasedMode) {
     $safes = Get-SafeGroups
-    if ($debugOn) { Write-Host $stopWatch.Elapsed + " catched group based safes: $( $safes.Count )" }
+    if ($debugOn) { Write-Host $stopWatch.Elapsed + " fetched group based safes: $( $safes.Count )" }
 }
 else {
     Invoke-Logon
     if ($debugOn) { Write-Host $stopWatch.Elapsed + " login done" }
 
     $safes = Get-Safes 
-    if ($debugOn) { Write-Host $stopWatch.Elapsed + " catched safes: $( $safes.Count )" }
+    if ($debugOn) { Write-Host $stopWatch.Elapsed + " fetched safes: $( $safes.Count )" }
 }
 
 # get the prepared data file and remove BOM (thanks to .NET, IIS) if necessary
 $jsonFileData = Invoke-WebRequest -Uri $dataUrl -Method GET -UseBasicParsing -ContentType 'application/json; charset=utf-8'
-if ($debugOn) { Write-Host $stopWatch.Elapsed + " catched json file length: $( $jsonFileData.RawContentLength)" }
-$safesAndAccountsList = $jsonFileData.Content | Foreach-Object { $_ -replace "\xEF\xBB\xBF", "" } | ConvertFrom-Json
+if ($debugOn) { Write-Host $stopWatch.Elapsed + " fetched json file length: $( $jsonFileData.RawContentLength)" }
 
-# sort list
-switch ($settings.folderCreation) {
-    "safe.name" { $sortedSafesAndAccountsList = $safesAndAccountsList.psobject.properties | Sort-Object { $_.Value.safe.safename } }
-    "safe.name-description" { $sortedSafesAndAccountsList = $safesAndAccountsList.psobject.properties | Sort-Object { $_.Value.safe.safename } }
-    "safe.description" { $sortedSafesAndAccountsList = $safesAndAccountsList.psobject.properties | Sort-Object { $_.Value.safe.description } }
-    "safe.description-name" { $sortedSafesAndAccountsList = $safesAndAccountsList.psobject.properties | Sort-Object { $_.Value.safe.description } }
-    Default { $sortedSafesAndAccountsList = $safesAndAccountsList.psobject.properties | Sort-Object { $_.Value.safe.safename } }
-}
+$safesAndAccounts = $jsonFileData.Content | Foreach-Object { $_ -replace "\xEF\xBB\xBF", "" } | ConvertFrom-Json
 
-# SafesAndAccountsList into a hashtable with key = order
-$safesAndAccountsTable = @{ }
-foreach ($entry in $sortedSafesAndAccountsList) { 
-    $safesAndAccountsTable[ $safesAndAccountsTable.Count ] = @($entry.Name, $entry.Value)
-}
-if ($debugOn) { Write-Host $stopWatch.Elapsed + " wrote and sorted safesAndAccounts to HashTable" }
-
-foreach ($safeKey in $safesAndAccountsTable.getEnumerator() | Sort-Object Key) {
-    $safeAndAccounts = $safeKey.Value
-    
+foreach ($safeAccount in $safesAndAccounts) {
+   
     # match safe or continue
-    if ( !$settings.allAccountsMode -and !$safes.ContainsKey( $safeAndAccounts.safe.SafeName ) ) { continue }
+    if ( !$settings.allAccountsMode -and !$safes.ContainsKey( $safeAccount.SafeName ) ) { continue }
 
     # apply safeFilter
-    if ($settings.safeFilter -and !([regex]::Match( $safeAndAccounts.safe.SafeName, $settings.safeFilterRegex ).Success )) { continue } 
+    if ($settings.safeFilter -and !([regex]::Match( $safeAccount.SafeName, $settings.safeFilterRegex ).Success )) { continue } 
 
     if ($settings.folderCreation -eq "none") {
         $objects = @()
@@ -417,30 +404,27 @@ foreach ($safeKey in $safesAndAccountsTable.getEnumerator() | Sort-Object Key) {
         $folder.ColorFromParent = $true
 
         switch ($settings.folderCreation) {
-            "safe.name" { $folder.Name = $safeAndAccounts.safe.SafeName }
-            "safe.name-description" { $folder.Name = $safeAndAccounts.safe.SafeName + ' - ' + $safeAndAccounts.safe.Description }
-            "safe.description" { $folder.Name = $safeAndAccounts.safe.Description }
-            "safe.description-name" { $folder.Name = $safeAndAccounts.safe.Description + ' - ' + $safeAndAccounts.safe.SafeName }
+            "safe.name" { $folder.Name = $safeAccount.SafeName }
+            "safe.name-description" { $folder.Name = $safeAccount.SafeName + ' - ' + $safeAccount.Description }
+            "safe.description" { $folder.Name = $safeAccount.Description }
+            "safe.description-name" { $folder.Name = $safeAccount.Description + ' - ' + $safeAccount.SafeName }
         }
     }
 
-    # get accounts hashtable with key = ID
-    $accounts = @{ }
-    $safeAndAccounts.accounts.psobject.properties | ForEach-Object { $accounts[ $_.Name] = $_.Value }
-    if ($debugOn) { Write-Host $stopWatch.Elapsed + " wrote accounts from $( $safeAndAccounts.safe.SafeName) to HashTable" }
-    foreach ($accountKey in $accounts.Keys) {
-        $accountDetails = $accounts[ $accountKey]
-        $accountPlatform = $accountDetails.platformId
+    foreach ($account in $safeAccount.Accounts) {
+
+        $accountPlatform = $account.platformId
+
         if (!$platformMapping.ContainsKey( $accountPlatform)) { continue }
-        if ($settings.excludeAccounts.Contains( $accountDetails.userName)) { continue }
+        if ($settings.excludeAccounts.Contains( $account.userName)) { continue }
         if ($debugOn) { $debugNrAccounts++ }
         # create connections for every configured connection component
-        if ($null -eq $accountDetails.remoteMachinesAccess.remoteMachines) {
-            Add-Member -InputObject $accountDetails -NotePropertyName 'target' -NotePropertyValue $accountDetails.address
+        if ($null -eq $account.remoteMachines) {
+            Add-Member -InputObject $account -NotePropertyName 'target' -NotePropertyValue $account.address
             $royalPlatform = $platformMapping[ $accountPlatform]
             foreach ($connection in $royalPlatform.connections) {
                 foreach ($component in $connection.components) { 
-                    $connectionEntry = Get-ConnectionEntry $accountDetails $royalPlatform $connection.Type $component
+                    $connectionEntry = Get-ConnectionEntry $account $royalPlatform $connection.Type $component
                     if ($settings.folderCreation -eq "none") { $objects += $connectionEntry }
                     else { $folder.Objects += $connectionEntry }
                     if ($debugOn) { $debugNrServerConnections++ }
@@ -449,13 +433,13 @@ foreach ($safeKey in $safesAndAccountsTable.getEnumerator() | Sort-Object Key) {
         }
         # create connections for each remoteMachine and every configured connection component
         else {
-            $remoteMachines = $accountDetails.remoteMachinesAccess.remoteMachines.split(';', [System.StringSplitOptions]::RemoveEmptyEntries) | Sort-Object
-            foreach ($rmAddress in $remoteMachines) {
-                Add-Member -InputObject $accountDetails -NotePropertyName 'target' -NotePropertyValue $rmAddress -Force
+            $rmMachines = $account.remoteMachines.split(';', [System.StringSplitOptions]::RemoveEmptyEntries) | Sort-Object
+            foreach ($rmAddress in $rmMachines) {
+                Add-Member -InputObject $account -NotePropertyName 'target' -NotePropertyValue $rmAddress -Force
                 $royalPlatform = $platformMapping[ $accountPlatform]
                 foreach ($connection in $royalPlatform.connections) {
                     foreach ($component in $connection.components) { 
-                        $connectionEntry = Get-ConnectionEntry $accountDetails $royalPlatform $connection.Type $component
+                        $connectionEntry = Get-ConnectionEntry $account $royalPlatform $connection.Type $component
                         if ($settings.folderCreation -eq "none") { $objects += $connectionEntry }
                         else { $folder.Objects += $connectionEntry }
                         if ($debugOn) { $debugNrServerConnections++ }
@@ -477,7 +461,7 @@ foreach ($safeKey in $safesAndAccountsTable.getEnumerator() | Sort-Object Key) {
 $jsonResponse = $response | ConvertTo-Json -Depth 100
 
 if ($debugOn) { 
-    Write-Host $stopWatch.Elapsed + " got $( $jsonResponse.objects.Count) folders with $debugNrAccounts accounts and $debugNrServerConnections server connections" 
+    Write-Host $stopWatch.Elapsed + " got $debugNrServerConnections server connections" 
     Out-File -FilePath "data.json" -Encoding UTF8 -InputObject $jsonResponse
 }
 else {

@@ -33,6 +33,7 @@ $settings = @"
     "folderCreation": "safe.name",
     "entryName": "named",
     "enableNLA": 0,
+    "rdpResizeMode": "",
     "excludeAccounts": ["guest"],
     "useWebPluginWin": "f008c2f0-5fb3-4c5e-a8eb-8072c1183088",
     "platformMappings": {
@@ -221,7 +222,8 @@ function Get-ConnectionRDP($acc, $plat, $comp) {
 
     if ([string]::isNullOrEmpty( $plat.color )) { $entry.ColorFromParent = $true } else { $entry.color = $plat.color }
     if ([string]::isNullOrEmpty( $plat.replacePsm )) { $entry.ComputerName = $psmRdpAddress } else { $entry.ComputerName = $plat.replacePsm }
-
+    if ([string]::isNullOrEmpty( $settings.rdpResizeMode )) { $entry.ResizeMode = 'SmartSizing' } else { $entry.ResizeMode = $settings.rdpResizeMode }
+    
     $entry.Username = $caUser
     if ($plat.drivesRedirection) { $entry.Properties.RedirectDrives = 'true' }    
     if ($settings.enableNLA) { $entry.NLA = 'true' } else { $entry.NLA = 'false' }

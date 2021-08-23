@@ -96,7 +96,6 @@ function Invoke-Request {
     return $response
 }
 
-
 #########################################
 #                MAIN                   #
 #########################################
@@ -124,25 +123,30 @@ Write-Log -LogString "Retrieved $($safes.Count) CyberArk safes"
 if ($debugOn) { Write-Host $stopWatch.Elapsed + " catched safes: $($safes.Count)" }
 
 # get accounts from safe list
-$safeAndAccountsList = @{ }
+$safesAndAccounts = @()
+$accountEntriesCount = 0
+
 foreach ($safe in $safes) {
     $accountURL = $pvwaUrl + '/api/Accounts?limit=1000&filter=safeName eq ' + $safe.SafeName
     $accountsResult = $(Invoke-Request -Uri $accountURL -Headers $header -Method Get).content | ConvertFrom-Json
     if ($null -ne $accountsResult.value -and $accountsResult.value.Length -gt 0) {
-        $safeAndAccountsList.Add( $safe.SafeName, @{ } )
-        $safeAndAccountsList[$safe.SafeName].Add( "safe", $safe )
-        $safeAndAccountsList[$safe.SafeName].Add( "accounts", @{ } )
+        $safeEntry = @{ "SafeName" = $safe.SafeName; "Description" = $safe.Description; "Accounts" = @() }
+
         foreach ($account in $accountsResult.value) {
-            $safeAndAccountsList[$safe.SafeName]["accounts"].Add( $account.id, $account )
+            $accountEntry = @{ "userName" = $account.userName; "address" = $account.address ; "platformId" = $account.platformId; "remoteMachines" = $account.remoteMachinesAccess.remoteMachines }
+            $safeEntry.Accounts += $accountEntry
+            $accountEntriesCount++
         }
+
+        $safesAndAccounts += $safeEntry
     }
 }
-Write-Log -LogString "Retrieved $($safeAndAccountsList.Count) CyberArk accounts from all safes"
-if ($debugOn) { Write-Host $stopWatch.Elapsed + " catched safes accounts: $($safeAndAccountsList.Count)" }
+Write-Log -LogString "Retrieved $accountEntriesCount CyberArk accounts"
+if ($debugOn) { Write-Host $stopWatch.Elapsed + " catched safes accounts: $accountEntriesCount" }
 
 # check accounts list
-if ($safeAndAccountsList.Count -gt 1) {
-    $results = $safeAndAccountsList | ConvertTo-Json -Depth 100
+if ($safesAndAccounts.Count -gt 1) {
+    $results = $safesAndAccounts | ConvertTo-Json -Depth 100
 
     
     $filePathBak = $filePath + '.bak'

@@ -1,4 +1,4 @@
-# RoyalTS Dynamic Folder for CyberArk PAS
+# cyberRoyal - RoyalTS Dynamic Folder for CyberArk PAS
 
 ![cyberRoyal](./resources/cyberRoyal.png)
 

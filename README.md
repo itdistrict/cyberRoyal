@@ -33,9 +33,9 @@ The client side provides a powershell script for a "Dynamic Folder" in RoyalTS w
 - CyberArk PAS v10.x or greater
 - PowerShell v3 or greater
 - RoyalTS v5.0 or greater (v5.1+ with Web AutoForm Login entries)
-- CyberArk PSM for RDP which allow to connect RDP directly (with or without NLA) - see [CyberArk PSM documentation](https://docs.cyberark.com/Product-Doc/OnlineHelp/PAS/Latest/en/Content/PASIMP/PSSO-ConnectingDirectly.htm)
-- A Webserver that can provide the server side prefetched list (e.g. use an IIS from a PVWA component server)
-- Domain Accounts in CyberArk must provide their Targets in the "RemoteMachineAddress" attribute
+- CyberArk PSM for RDP which allows to connect RDP directly (with or without NLA) - see [CyberArk PSM documentation](https://docs.cyberark.com/Product-Doc/OnlineHelp/PAS/Latest/en/Content/PASIMP/PSSO-ConnectingDirectly.htm)
+- A webserver that can provide the server side prefetched list (e.g. use an IIS from a PVWA component server)
+- Domain accounts in CyberArk must provide their targets in the "RemoteMachineAddress" attribute
 
 ## Setup ServerSide
 
@@ -282,7 +282,7 @@ RoyalTS rJSON objects: <https://docs.royalapps.com/r2021/scripting/rjson/availab
 
 ## Known limitations
 
-- SAML auth method for PVWA will not work, apply a groupBasedMode or allAccountsMode
+- SAML auth method for PVWA will not work, apply a groupBasedMode or allAccountsMode (PowerShell SAML auth is coming soon)
 - MFA auth method like RADIUS with a Challenge (OTP/mTAN) for PVWA will not work (where Non-Challenge like push notification works), apply a groupBasedMode or allAccountsMode
 - Multiple and different connection entries for different connection components in the same Platform cannot be used actually
 - OLAC will not be differentiated from safe ACL to create accessable connections

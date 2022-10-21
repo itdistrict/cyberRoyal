@@ -1,6 +1,6 @@
 #########################################
 ##       Royal TS meets CyberArk       ##
-##          www.itdistrict.ch          ##
+##          www.gravitir.ch            ##
 #########################################
 #         ServerSide Script             #
 #########################################
@@ -8,7 +8,7 @@
 #########################################
 
 #########################################
-#          Customisations               #
+#          Customizations               #
 #########################################
 
 #########################################
@@ -37,6 +37,33 @@ if ($debugOn) { $stopWatch = [system.diagnostics.stopwatch]::StartNew() }
 [System.Net.WebRequest]::DefaultWebProxy.Credentials = [System.Net.CredentialCache]::DefaultCredentials
 [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.SecurityProtocolType]::Tls12 -bor [System.Net.SecurityProtocolType]::Tls11
 if ($psCertValidation) { [System.Net.ServicePointManager]::ServerCertificateValidationCallback = { $true } } else { [System.Net.ServicePointManager]::ServerCertificateValidationCallback = $null }
+
+# ssl/tls workaround for selfsigned
+# Add-Type @"
+#     using System;
+#     using System.Net;
+#     using System.Net.Security;
+#     using System.Security.Cryptography.X509Certificates;
+#     public class ServerCertificateValidationCallback
+#     {
+#         public static void Ignore()
+#         {
+#             ServicePointManager.ServerCertificateValidationCallback += 
+#                 delegate
+#                 (
+#                     Object obj, 
+#                     X509Certificate certificate, 
+#                     X509Chain chain, 
+#                     SslPolicyErrors errors
+#                 )
+#                 {
+#                     return true;
+#                 };
+#         }
+#     }
+# "@
+# [ServerCertificateValidationCallback]::Ignore();
+
 
 #########################################
 #               Variables               #

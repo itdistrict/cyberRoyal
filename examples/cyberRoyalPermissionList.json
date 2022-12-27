@@ -1,0 +1,9 @@
+[
+    { "admin": ["PAM", "T0-WinAD"] },
+    { "user": ["PAM", "T0-WinAD"] },
+    { "user1": ["PAM", "T1-WinServers"] },
+    { "user2": ["T0-WinAD"] },
+    { "user3": ["PAM"] },
+    { "user4": ["T1-WinServers"] },
+    { "user5": ["T0-WinADDS"] }
+]

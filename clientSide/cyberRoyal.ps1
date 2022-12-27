@@ -27,23 +27,35 @@ $debugOn = $false
 # settings localy, webSettingsUrl will replace this entries!
 $settings = @"
 {
+    "cyberRoyalMode": "list|pvwa",
+
+    "listMode": "groupRBAC|pvwaRBAC|listRBAC|listALL",
+    "listUrl": "https://YOUR-WEBHOST/ScriptData/cyberRoyalSafeAccountList.json",
+    "listPermissionUrl": "https://YOUR-WEBHOST/ScriptData/cyberRoyalPermissionList.json",
+    "adGroupSafeRegex": "CN=.*?(SafeName),OU=.*",
+
     "pvwaUrl": "https://YOUR-PVWA/PasswordVault",
-    "dataUrl": "https://YOUR-WEBHOST/ScriptData/cyberRoyalSafeAccountList.json",
-    "authMethod": "LDAP",
-    "authPrompt": 1,
+
+    "pvwaAuthMethod": "LDAP",
+    "pvwaAuthPrompt": 1,
+
+    "pvwaSafeSearch": "",
+    "pvwaSavedFilter": "Favorites|Recently",
+
+    "safeFilter": ".*",
+    "excludeAccounts": ["guest"],
+
     "psmRdpAddress": "YOUR-PSM-RDP",
     "psmSshAddress": "YOUR-PSM-SSH",
-    "allAccountsMode": 0,
-    "safeFilter": 0,
-    "safeFilterRegex": ".*_OnylThisSafes.*",
-    "groupBasedMode": 0,
-    "groupBasedSafeRegex": "CN=.*?(SafeName),OU=.*",
-    "folderCreation": "safe.name",
+
     "entryName": "named",
+
+    "folderCreation": "safeName|safeDescription|platform|accountParameter",
+    "folderAccountParameter": "Location",
+
     "enableNLA": 0,
-    "rdpResizeMode": "",
-    "excludeAccounts": ["guest"],
     "useWebPluginWin": "f008c2f0-5fb3-4c5e-a8eb-8072c1183088",
+
     "platformMappings": {
         "UnixSSH": {
             "connections": [{ "type": "SSH", "components": ["PSMP-SSH"] }]
@@ -120,7 +132,7 @@ else {
 #########################################
 # get settings from web if available
 if (![string]::isNullOrEmpty($webSettingsUrl)) {
-	$settings = Invoke-WebRequest -Uri $webSettingsUrl -Method GET -UseBasicParsing -ContentType 'application/json; charset=utf-8'
+	$settings = Invoke-WebRequest -Uri $webSettingsUrl -Method Get -UseBasicParsing -ContentType "application/json; charset=utf-8"
 }
 
 # get settings and form a platformMapping hashtable with key = platformname
@@ -128,11 +140,12 @@ $settings = $settings | ConvertFrom-Json
 $platformMapping = @{ }
 foreach ( $prop in $settings.platformMappings.psobject.properties ) { $platformMapping[ $prop.Name ] = $prop.Value }
 
-$baseURL = $settings.pvwaUrl
-$dataUrl = $settings.dataUrl
-$authMethod = $settings.authMethod
-$authPrompt = $settings.authPrompt
-$groupBasedMode = $settings.groupBasedMode
+$cyberRoyalMode = $settings.cyberRoyalMode
+$pvwaUrl = $settings.pvwaUrl
+$listUrl = $settings.listUrl
+
+$pvwaAuthMethod = $settings.pvwaAuthMethod
+$pvwaAuthPrompt = $settings.pvwaAuthPrompt
 
 $psmRdpAddress = $settings.psmRdpAddress
 $psmSshAddress = $settings.psmSshAddress
@@ -147,7 +160,7 @@ $EffectivePassword$
 '@
 
 if ([string]::isNullOrEmpty( $caUser )) { $caUser = $env:username }
-if ((!$groupBasedMode) -and $authPrompt) {	$caCredentials = Get-Credential -UserName $caUser -Message "Please enter your CyberArk Username and Password" }
+if ((!$groupBasedMode) -and $pvwaAuthPrompt) {	$caCredentials = Get-Credential -UserName $caUser -Message "Please enter your CyberArk Username and Password" }
 
 
 # prepare RoyalJSON response
@@ -158,60 +171,79 @@ $response = @{
 #########################################
 #              Functions                #
 #########################################
+
+function Write-Debug($message) {
+	if ($debugOn) { Write-Host $stopWatch.Elapsed + " - $message" }
+}
 function Invoke-Logon() {
 	$global:header = @{ }
-	$header.Add('Content-type', 'application/json') 
-	$logonURL = $baseURL + '/api/auth/' + $authMethod + '/Logon'
-	if ($authPrompt) { $logonData = @{ username = $caCredentials.GetNetworkCredential().UserName; password = $caCredentials.GetNetworkCredential().Password; concurrentSession = $true; } | ConvertTo-Json }
+	$header.Add("Content-type", "application/json") 
+	$logonURL = $pvwaUrl + "/api/auth/" + $pvwaAuthMethod + "/Logon"
+	if ($pvwaAuthPrompt) { $logonData = @{ username = $caCredentials.GetNetworkCredential().UserName; password = $caCredentials.GetNetworkCredential().Password; concurrentSession = $true; } | ConvertTo-Json }
 	else { $logonData = @{ username = $caUser; password = $caPass; concurrentSession = $true; } | ConvertTo-Json }
 	try {
 		$logonDataEnc = [System.Text.Encoding]::UTF8.GetBytes($logonData)
 		$logonResult = $( Invoke-WebRequest -Uri $logonURL -Headers $header -Method Post -UseBasicParsing -Body $logonDataEnc ).content | ConvertFrom-Json 
 	} 
 	catch { 
-		Write-Error "Did you define the right credentials to login? "
+		Write-Error "Did you define the right credentials to login?"
 	}
-	$header.Add('Authorization' , $logonResult) 
+	$header.Add("Authorization" , $logonResult) 
 }
 function Invoke-Logoff() {
-	try { Invoke-WebRequest -Uri $( $baseURL + '/api/auth/Logoff') -Headers $header -UseBasicParsing -Method Post | Out-Null } catch { }
+	try { Invoke-WebRequest -Uri $( $pvwaUrl + "/api/auth/Logoff") -Headers $header -UseBasicParsing -Method Post | Out-Null } catch { }
 }
-function Get-Safes() {
-	$safeURL = $baseURL + '/api/Safes?limit=10000'
+function Get-PvwaSafes() {
+	if ([string]::IsNullOrEmpty($settings.pvwaSafeSearch)) { $safeURL = $pvwaUrl + "/api/Safes?limit=10000" } else { $safeURL = $pvwaUrl + "/api/Safes?limit=10000&search=$($settings.pvwaSafeSearch)" }
 	$safesList = $( Invoke-WebRequest -Uri $safeURL -Headers $header -Method Get -UseBasicParsing).content | ConvertFrom-Json
 	$safes = [System.Collections.Generic.List[string]]::new();
 	foreach ($safe in $safesList.value) {
 		$safes.Add($safe.SafeName)
 	}
-	if ($debugOn) { Write-Host $stopWatch.Elapsed + " fetched safes from API" }
+	Write-Debug "fetched safes from PVWA" 
 	$safes = $safes | Sort-Object
 	return $safes
 }
 
-function Get-SafeGroups() {
+function Get-PermissionListSafes() {
+	$jsonFileData = Invoke-WebRequest -Uri $settings.listPermissionUrl -Method GET -UseBasicParsing -ContentType 'application/json; charset=utf-8'
+	$safePermissionList = $jsonFileData.Content | Foreach-Object { $_ -replace "\xEF\xBB\xBF", "" } | ConvertFrom-Json
+	$safes = [System.Collections.Generic.List[string]]::new();
+	foreach ($safePermission in $safePermissionList) {
+		if ($safePermission.user -eq $caUser) {
+			$safes = $safePermission.permissions
+		}
+	}
+	Write-Debug "fetched safes from PermissionList" 
+	$safes = $safes | Sort-Object
+	return $safes
+}
+
+
+function Get-adGroupSafes() {
 	$userGroups = (New-Object System.DirectoryServices.DirectorySearcher("(&(objectCategory=User)(samAccountName=$( $caUser )))")).FindOne().GetDirectoryEntry()
 	$groups = $userGroups.memberOf
 
-	if ($debugOn) { Write-Host $stopWatch.Elapsed + " fetched $caUser member groups $groups" }
+	Write-Debug "fetched $caUser member groups $groups"
 
 	$safes = [System.Collections.Generic.List[string]]::new();
 	foreach ($group in $groups) {
-		$match = [regex]::Match($group, $settings.groupBasedSafeRegex)
+		$match = [regex]::Match($group, $settings.groupSafeRegex)
 		if ($match.Success) {
 			$safeName = $match.Groups[1].ToString()
 			$safes.Add($safeName)
 		}
 	}
-	if ($debugOn) { Write-Host $stopWatch.Elapsed + " fetched safes from groups" }
+	Write-Debug "fetched safes from groups" 
 
 	$safes = $safes | Sort-Object
 	return $safes
 }
 
-function Get-AccountsFromSafesPVWA($safes) {
+function Get-PvwaAccountsFromSafes($safes) {
 	$safesAndAccounts = [System.Collections.Generic.Dictionary[string, object]]::new();
 	foreach ($safe in $safes) {
-		$accountURL = $pvwaUrl + '/api/Accounts?limit=1000&filter=safeName eq ' + $safe.SafeName
+		$accountURL = $pvwaUrl + "/api/Accounts?limit=1000&filter=safeName eq $($safe.SafeName)"
 		$accountsResult = $(Invoke-Request -Uri $accountURL -Headers $header -Method Get).content | ConvertFrom-Json
 		if ($null -ne $accountsResult.value -and $accountsResult.value.Length -gt 0) {
 			$safeEntry = @{ "SafeName" = $safe.SafeName; "Description" = $safe.Description; "Accounts" = [System.Collections.Generic.List[object]]::new(); }
@@ -232,18 +264,47 @@ function Get-AccountsFromSafesPVWA($safes) {
 	return $safesAndAccounts
 }
 
+function Get-PvwaAccountsFromSavedFilter($savedFilter) {
+	$safesAndAccounts = [System.Collections.Generic.Dictionary[string, object]]::new();
+	$accountURL = $pvwaUrl + "/api/Accounts?savedFilter=$savedFilter"
+	$accountsResult = $(Invoke-Request -Uri $accountURL -Headers $header -Method Get).content | ConvertFrom-Json
+	if ($null -ne $accountsResult.value -and $accountsResult.value.Length -gt 0) {
+		$safes = $accountsResult.value.safeName
+
+		foreach ($safe in $safes) {
+			$safeEntry = @{ "SafeName" = $safe; "Description" = ""; "Accounts" = [System.Collections.Generic.List[object]]::new(); }
+	
+			foreach ($account in $accountsResult.value) {
+				if ($account.safeName -eq $safe) {
+					$accountEntry = @{ "userName" = $account.userName; "address" = $account.address ; "platformId" = $account.platformId; "remoteMachines" = $account.remoteMachinesAccess.remoteMachines }
+					foreach ($property in $additionalPlatformAccountProperties) {
+						$accountEntry += @{$property = $account.platformAccountProperties.$property }
+					}
+					$safeEntry.Accounts.Add($accountEntry)
+					$accountEntriesCount++
+				}
+			}
+	
+			$safesAndAccounts.Add($safe.SafeName, $safeEntry)
+		}
+	}
+
+	$safesAndAccounts = $safesAndAccounts.GetEnumerator() | Sort-Object
+	return $safesAndAccounts
+}
+
 function Get-ConnectionRDP($acc, $plat, $comp) {
 	$entry = @{ }
 	$entry.Properties = @{ }
-	$entry.Type = 'RemoteDesktopConnection'
+	$entry.Type = "RemoteDesktopConnection"
 
 	if ([string]::isNullOrEmpty( $plat.color )) { $entry.ColorFromParent = $true } else { $entry.color = $plat.color }
 	if ([string]::isNullOrEmpty( $plat.replacePsm )) { $entry.ComputerName = $psmRdpAddress } else { $entry.ComputerName = $plat.replacePsm }
-	if ([string]::isNullOrEmpty( $settings.rdpResizeMode )) { $entry.ResizeMode = 'SmartSizing' } else { $entry.ResizeMode = $settings.rdpResizeMode }
+	if ([string]::isNullOrEmpty( $settings.rdpResizeMode )) { $entry.ResizeMode = "SmartSizing" } else { $entry.ResizeMode = $settings.rdpResizeMode }
     
 	$entry.Username = $caUser
-	if ($plat.drivesRedirection) { $entry.Properties.RedirectDrives = 'true' }    
-	if ($settings.enableNLA) { $entry.NLA = 'true' } else { $entry.NLA = 'false' }
+	if ($plat.drivesRedirection) { $entry.Properties.RedirectDrives = "true" }    
+	if ($settings.enableNLA) { $entry.NLA = "true" } else { $entry.NLA = "false" }
 	if ($plat.psmRemoteMachine) {
 		if ($comp -ne "PSM-RDP") { $componentAddition = ' - ' + $comp }
 		# Entry Name
@@ -251,37 +312,37 @@ function Get-ConnectionRDP($acc, $plat, $comp) {
 		else {
 			if (![string]::isNullOrEmpty( $plat.entryName )) { $entryName = $plat.entryName } else { $entryName = $settings.entryName }
 			switch ($entryName) {
-				"full" { $entry.Name = $plat.namePrefix + $acc.userName + '@' + $acc.address + ' - ' + $acc.target + $componentAddition + $plat.namePostfix } 
-				"named" { $entry.Name = $plat.namePrefix + $acc.userName + '@' + $acc.target + $componentAddition + $plat.namePostfix }
+				"full" { $entry.Name = $plat.namePrefix + $acc.userName + "@" + $acc.address + " - " + $acc.target + $componentAddition + $plat.namePostfix } 
+				"named" { $entry.Name = $plat.namePrefix + $acc.userName + "@" + $acc.target + $componentAddition + $plat.namePostfix }
 				Default { $entry.Name = $plat.namePrefix + $acc.target + $componentAddition + $plat.namePostfix }
 			}
 			if (![string]::isNullOrEmpty( $plat.replaceRegex )) { $entry.Name = $entry.Name -replace $plat.replaceRegex }
 		}
-		$entry.Properties.StartProgram = 'psm /u ' + $acc.userName + '@' + $acc.address + ' /a ' + $acc.target + ' /c ' + $comp
+		$entry.Properties.StartProgram = "psm /u " + $acc.userName + "@" + $acc.address + " /a " + $acc.target + " /c " + $comp
 	}
 	else {
-		if ($comp -ne "PSM-RDP") { $componentAddition = ' - ' + $comp }
+		if ($comp -ne "PSM-RDP") { $componentAddition = " - " + $comp }
 
 		# Entry Name
 		if (![string]::isNullOrEmpty( $plat.replaceName )) { $entry.Name = $plat.replaceName }
 		else {
 			if (![string]::isNullOrEmpty( $plat.entryName )) { $entryName = $plat.entryName } else { $entryName = $settings.entryName }
 			switch ($entryName) {
-				"full" { $entry.Name = $plat.namePrefix + $acc.userName + ' - ' + $acc.target + $componentAddition + $plat.namePostfix } 
-				"named" { $entry.Name = $plat.namePrefix + $acc.userName + '@' + $acc.target + $componentAddition + $plat.namePostfix }
+				"full" { $entry.Name = $plat.namePrefix + $acc.userName + " - " + $acc.target + $componentAddition + $plat.namePostfix } 
+				"named" { $entry.Name = $plat.namePrefix + $acc.userName + "@" + $acc.target + $componentAddition + $plat.namePostfix }
 				Default { $entry.Name = $plat.namePrefix + $acc.target + $componentAddition + $plat.namePostfix }
 			}
 			if (![string]::isNullOrEmpty( $plat.replaceRegex )) { $entry.Name = $entry.Name -replace $plat.replaceRegex }
 		}
-		$entry.Properties.StartProgram = 'psm /u ' + $acc.userName + ' /a ' + $acc.target + ' /c ' + $comp
+		$entry.Properties.StartProgram = "psm /u " + $acc.userName + " /a " + $acc.target + " /c " + $comp
 	}
 	return $entry
 }
 
 function Get-ConnectionSSH($acc, $plat, $comp) {
 	$entry = @{ }
-	$entry.Type = 'TerminalConnection'
-	$entry.TerminalConnectionType = 'SSH'
+	$entry.Type = "TerminalConnection"
+	$entry.TerminalConnectionType = "SSH"
 
 	if ([string]::isNullOrEmpty( $plat.color )) { $entry.ColorFromParent = $true } else { $entry.color = $plat.color }
 	if ([string]::isNullOrEmpty( $plat.replacePsm )) { $entry.ComputerName = $psmSshAddress } else { $entry.ComputerName = $plat.replacePsm }
@@ -291,20 +352,20 @@ function Get-ConnectionSSH($acc, $plat, $comp) {
 	else {
 		if (![string]::isNullOrEmpty( $plat.entryName )) { $entryName = $plat.entryName } else { $entryName = $settings.entryName }
 		switch ($entryName) {
-			"full" { $entry.Name = $plat.namePrefix + $acc.userName + '@' + $acc.target + ' - ' + $comp + $plat.namePostfix }  
-			"named" { $entry.Name = $plat.namePrefix + $acc.userName + '@' + $acc.target + $plat.namePostfix } 
+			"full" { $entry.Name = $plat.namePrefix + $acc.userName + "@" + $acc.target + " - " + $comp + $plat.namePostfix }  
+			"named" { $entry.Name = $plat.namePrefix + $acc.userName + "@" + $acc.target + $plat.namePostfix } 
 			Default { $entry.Name = $plat.namePrefix + $acc.target + $plat.namePostfix }
 		}
 		if (![string]::isNullOrEmpty($plat.replaceRegex)) { $entry.Name = $entry.Name -replace $plat.replaceRegex }
 	}
-	$entry.UserName = $caUser + '@' + $acc.userName + '@' + $acc.target
+	$entry.UserName = $caUser + "@" + $acc.userName + "@" + $acc.target
 	return $entry
 }
 
 function Get-ConnectionSFTP($acc, $plat, $comp) {
 	$entry = @{ }
-	$entry.Type = 'FileTransferConnection'
-	$entry.FileTransferConnectionType = 'SFTP'
+	$entry.Type = "FileTransferConnection"
+	$entry.FileTransferConnectionType = "SFTP"
 
 	if ([string]::isNullOrEmpty( $plat.color )) { $entry.ColorFromParent = $true } else { $entry.color = $plat.color }
 	if ([string]::isNullOrEmpty( $plat.replacePsm )) { $entry.ComputerName = $psmSshAddress } else { $entry.ComputerName = $plat.replacePsm }
@@ -314,14 +375,14 @@ function Get-ConnectionSFTP($acc, $plat, $comp) {
 	else {
 		if (![string]::isNullOrEmpty( $plat.entryName )) { $entryName = $plat.entryName } else { $entryName = $settings.entryName }
 		switch ($entryName) {
-			"full" { $entry.Name = $plat.namePrefix + $acc.userName + '@' + $acc.target + ' - ' + $comp + $plat.namePostfix }  
-			"named" { $entry.Name = $plat.namePrefix + $acc.userName + '@' + $acc.target + $plat.namePostfix } 
+			"full" { $entry.Name = $plat.namePrefix + $acc.userName + "@" + $acc.target + " - " + $comp + $plat.namePostfix }  
+			"named" { $entry.Name = $plat.namePrefix + $acc.userName + "@" + $acc.target + $plat.namePostfix } 
 			Default { $entry.Name = $plat.namePrefix + $acc.target + $plat.namePostfix }
 		}
 		if (![string]::isNullOrEmpty($plat.replaceRegex)) { $entry.Name = $entry.Name -replace $plat.replaceRegex }
 	}
 	$entry.CredentialMode = 4
-	$entry.CredentialName = $caUser + '@' + $acc.userName + '@' + $acc.target
+	$entry.CredentialName = $caUser + "@" + $acc.userName + "@" + $acc.target
 	return $entry
 }
 
@@ -329,7 +390,7 @@ function Get-ConnectionSFTP($acc, $plat, $comp) {
 function Get-ConnectionWEB($acc, $plat, $comp) {
 	$entry = @{ }
 	$entry.Properties = @{ }
-	$entry.Type = 'WebConnection'
+	$entry.Type = "WebConnection"
 
 	if ([string]::isNullOrEmpty( $plat.color )) { $entry.ColorFromParent = $true } else { $entry.color = $plat.color }
 	if (![string]::isNullOrEmpty( $plat.webProtocol )) { $webProtocol = $plat.webProtocol } else { $webProtocol = "https" }
@@ -357,8 +418,8 @@ function Get-ConnectionWEB($acc, $plat, $comp) {
 	else {
 		if (![string]::isNullOrEmpty( $plat.entryName )) { $entryName = $plat.entryName } else { $entryName = $settings.entryName }
 		switch ($entryName) {
-			"full" { $entry.Name = $plat.namePrefix + $acc.userName + '@' + $acc.target + ' - ' + $comp + $plat.namePostfix }
-			"named" { $entry.Name = $plat.namePrefix + $acc.userName + '@' + $acc.target + $plat.namePostfix }
+			"full" { $entry.Name = $plat.namePrefix + $acc.userName + "@" + $acc.target + " - " + $comp + $plat.namePostfix }
+			"named" { $entry.Name = $plat.namePrefix + $acc.userName + "@" + $acc.target + $plat.namePostfix }
 			Default { $entry.Name = $plat.namePrefix + $acc.target + $plat.namePostfix }
 		}
 		if (![string]::isNullOrEmpty( $plat.replaceRegex )) { $entry.Name = $entry.Name -replace $plat.replaceRegex }
@@ -384,31 +445,45 @@ function Get-ConnectionEntry($accountDetail, $platformSetting, $connectionType, 
 #                MAIN                   #
 #########################################
 
-# TODO Switch cyberRoyal mode
-if ($settings.allAccountsMode) { 
-	$safes = [System.Collections.Generic.List[string]]::new();
-	if ($debugOn) { Write-Host $stopWatch.Elapsed + " applying all accounts" }
-}
-elseif ($settings.groupBasedMode) {
-	$safes = Get-SafeGroups
-	if ($debugOn) { Write-Host $stopWatch.Elapsed + " fetched group based safes: $( $safes.Count )" }
-}
-else {
-	Invoke-Logon
-	if ($debugOn) { Write-Host $stopWatch.Elapsed + " login done" }
-
-	$safes = Get-Safes 
-	if ($debugOn) { Write-Host $stopWatch.Elapsed + " fetched safes: $( $safes.Count )" }
+# TODO Switch cyberRoyal mode - set the users "permissive" safes to apply account connections
+switch ($cyberRoyalMode) {
+	"list" {
+		switch ($listMode) {
+			"adGroupRBAC" { 
+				$safes = Get-adGroupSafes
+				Write-Debug "fetched adGroup safes: $( $safes.Count )" 
+			}
+			"pvwaRBAC" { 
+				Invoke-Logon
+				$safes = Get-PvwaSafes 
+				Write-Debug "fetched PVWA safes: $( $safes.Count )" 
+			}
+			"listRBAC" { 
+				$safes = Get-PermissionListSafes 
+				Write-Debug "fetched PermissionList safes: $( $safes.Count )" 
+			}
+			"listALL" { 
+				$allAccountsMode = $true
+				Write-Debug "applying all accounts from list" 
+			}
+		}
+	}
+	"pvwa" {
+		Invoke-Logon
+		$safes = Get-PvwaSafes
+		Get-PvwaAccountsFromSafes($safes)
+	}
+	Default {}
 }
 
 # Get safes and accounts list either from prefetched data or via PVWA
-if ([string]::isNullOrEmpty($dataUrl)) { 
-	$safesAndAccounts = Get-AccountsFromSafesPVWA($safes)
+if ([string]::isNullOrEmpty($listUrl)) { 
+	$safesAndAccounts = Get-PvwaAccountsFromSafes($safes)
 }
 else {
 	# get the prepared data file and remove BOM (thanks to .NET, IIS) if necessary
-	$jsonFileData = Invoke-WebRequest -Uri $dataUrl -Method GET -UseBasicParsing -ContentType 'application/json; charset=utf-8'
-	if ($debugOn) { Write-Host $stopWatch.Elapsed + " fetched json file length: $( $jsonFileData.RawContentLength)" }
+	$jsonFileData = Invoke-WebRequest -Uri $listUrl -Method GET -UseBasicParsing -ContentType 'application/json; charset=utf-8'
+	Write-Debug "fetched json file length: $( $jsonFileData.RawContentLength)"
 	
 	# Array with objects (key=value objects, where key=SafeName)
 	$safesAndAccounts = $jsonFileData.Content | Foreach-Object { $_ -replace "\xEF\xBB\xBF", "" } | ConvertFrom-Json
@@ -418,7 +493,7 @@ else {
 foreach ($safe in $safesAndAccounts) {
    
 	# match safe or continue
-	if ( !$settings.allAccountsMode -and !($safes.Contains( $safe.Key )) ) { continue }
+	if ( !$allAccountsMode -and !($safes.Contains( $safe.Key )) ) { continue }
 
 	# apply safeFilter
 	if ($settings.safeFilter -and !([regex]::Match( $safe.Key, $settings.safeFilterRegex ).Success )) { continue } 
@@ -499,4 +574,4 @@ else {
 
 # logoff if required
 if (!$settings.groupBasedMode -and !$settings.allAccountsMode) { Invoke-Logoff }
-if ($debugOn) { Write-Host $stopWatch.Elapsed + " finished" }
+Write-Debug "finished" 

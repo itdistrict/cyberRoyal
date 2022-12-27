@@ -1,9 +1,9 @@
 [
-    { "admin": ["PAM", "T0-WinAD"] },
-    { "user": ["PAM", "T0-WinAD"] },
-    { "user1": ["PAM", "T1-WinServers"] },
-    { "user2": ["T0-WinAD"] },
-    { "user3": ["PAM"] },
-    { "user4": ["T1-WinServers"] },
-    { "user5": ["T0-WinADDS"] }
+    { "user": "admin", "permissions": ["PAM", "T0-WinAD"] },
+    { "user": "user", "permissions": ["PAM", "T0-WinAD"] },
+    { "user": "user1", "permissions": ["PAM", "T1-WinServers"] },
+    { "user": "user2", "permissions": ["T0-WinAD"] },
+    { "user": "user3", "permissions": ["PAM"] },
+    { "user": "user4", "permissions": ["T1-WinServers"] },
+    { "user": "user5", "permissions": ["T0-WinADDS"] }
 ]

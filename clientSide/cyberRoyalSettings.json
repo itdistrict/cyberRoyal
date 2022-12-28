@@ -13,6 +13,7 @@
 
     "pvwaSafeSearch": "",
     "pvwaSavedFilter": "Favorites|Recently",
+	"pvwaAdditionalPlatformAccountProperties": ["Location","FQDN"],
 
     "safeFilter": ".*",
     "excludeAccounts": ["guest"],

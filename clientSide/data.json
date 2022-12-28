@@ -1,0 +1,189 @@
+﻿{
+    "Objects":  [
+                    {
+                        "ColorFromParent":  true,
+                        "Objects":  [
+                                        {
+                                            "TerminalConnectionType":  "SSH",
+                                            "Type":  "TerminalConnection",
+                                            "ComputerName":  "pam-psmp1.kubi.gg",
+                                            "UserName":  "admin@pam@splunk.kubi.gg",
+                                            "Name":  "splunk.kubi.gg",
+                                            "ColorFromParent":  true
+                                        },
+                                        {
+                                            "FileTransferConnectionType":  "SFTP",
+                                            "CredentialMode":  4,
+                                            "CredentialName":  "admin@pam@splunk.kubi.gg",
+                                            "Type":  "FileTransferConnection",
+                                            "ComputerName":  "pam-psmp1.kubi.gg",
+                                            "Name":  "splunk.kubi.gg",
+                                            "ColorFromParent":  true
+                                        },
+                                        {
+                                            "NLA":  "false",
+                                            "Type":  "RemoteDesktopConnection",
+                                            "ResizeMode":  "SmartSizing",
+                                            "ComputerName":  "pam-pm1.kubi.gg",
+                                            "Username":  "admin",
+                                            "Name":  "splunk.kubi.gg - PSM-WinSCP",
+                                            "Properties":  {
+                                                               "StartProgram":  "psm /u pam /a splunk.kubi.gg /c PSM-WinSCP"
+                                                           },
+                                            "ColorFromParent":  true
+                                        },
+                                        {
+                                            "NLA":  "false",
+                                            "Type":  "RemoteDesktopConnection",
+                                            "ResizeMode":  "SmartSizing",
+                                            "ComputerName":  "pam-pm1.kubi.gg",
+                                            "Username":  "admin",
+                                            "Name":  "grav-ad.kubi.gg",
+                                            "Properties":  {
+                                                               "StartProgram":  "psm /u pam@grav-ad.kubi.gg /a grav-ad.kubi.gg /c PSM-RDP"
+                                                           },
+                                            "ColorFromParent":  true
+                                        },
+                                        {
+                                            "NLA":  "false",
+                                            "Type":  "RemoteDesktopConnection",
+                                            "ResizeMode":  "SmartSizing",
+                                            "ComputerName":  "pam-pm1.kubi.gg",
+                                            "Username":  "admin",
+                                            "Name":  "Local - pam - pam-epm.kubi.gg",
+                                            "Properties":  {
+                                                               "StartProgram":  "psm /u pam /a pam-epm.kubi.gg /c PSM-RDP"
+                                                           },
+                                            "ColorFromParent":  true
+                                        },
+                                        {
+                                            "NLA":  "false",
+                                            "Type":  "RemoteDesktopConnection",
+                                            "ResizeMode":  "SmartSizing",
+                                            "ComputerName":  "pam-pm1.kubi.gg",
+                                            "Username":  "admin",
+                                            "Name":  "Local - administrator - pam-epv.kubi.gg",
+                                            "Properties":  {
+                                                               "StartProgram":  "psm /u administrator /a pam-epv.kubi.gg /c PSM-RDP"
+                                                           },
+                                            "ColorFromParent":  true
+                                        }
+                                    ],
+                        "Type":  "Folder"
+                    },
+                    {
+                        "ColorFromParent":  true,
+                        "Objects":  [
+                                        {
+                                            "NLA":  "false",
+                                            "Type":  "RemoteDesktopConnection",
+                                            "ResizeMode":  "SmartSizing",
+                                            "ComputerName":  "pam-pm1.kubi.gg",
+                                            "Username":  "admin",
+                                            "Name":  "DC11.saDomain1.admin.ch",
+                                            "Properties":  {
+                                                               "StartProgram":  "psm /u t0-admin@saDomain1.admin.ch /a DC11.saDomain1.admin.ch /c PSM-RDP"
+                                                           },
+                                            "ColorFromParent":  true
+                                        },
+                                        {
+                                            "NLA":  "false",
+                                            "Type":  "RemoteDesktopConnection",
+                                            "ResizeMode":  "SmartSizing",
+                                            "ComputerName":  "pam-pm1.kubi.gg",
+                                            "Username":  "admin",
+                                            "Name":  "DC12.saDomain1.admin.ch",
+                                            "Properties":  {
+                                                               "StartProgram":  "psm /u t0-admin@saDomain1.admin.ch /a DC12.saDomain1.admin.ch /c PSM-RDP"
+                                                           },
+                                            "ColorFromParent":  true
+                                        },
+                                        {
+                                            "NLA":  "false",
+                                            "Type":  "RemoteDesktopConnection",
+                                            "ResizeMode":  "SmartSizing",
+                                            "ComputerName":  "pam-pm1.kubi.gg",
+                                            "Username":  "admin",
+                                            "Name":  "DC13.saDomain1.admin.ch",
+                                            "Properties":  {
+                                                               "StartProgram":  "psm /u t0-admin@saDomain1.admin.ch /a DC13.saDomain1.admin.ch /c PSM-RDP"
+                                                           },
+                                            "ColorFromParent":  true
+                                        },
+                                        {
+                                            "NLA":  "false",
+                                            "Type":  "RemoteDesktopConnection",
+                                            "ResizeMode":  "SmartSizing",
+                                            "ComputerName":  "pam-pm1.kubi.gg",
+                                            "Username":  "admin",
+                                            "Name":  "DC14.saDomain1.admin.ch",
+                                            "Properties":  {
+                                                               "StartProgram":  "psm /u t0-admin@saDomain1.admin.ch /a DC14.saDomain1.admin.ch /c PSM-RDP"
+                                                           },
+                                            "ColorFromParent":  true
+                                        },
+                                        {
+                                            "NLA":  "false",
+                                            "Type":  "RemoteDesktopConnection",
+                                            "ResizeMode":  "SmartSizing",
+                                            "ComputerName":  "pam-pm1.kubi.gg",
+                                            "Username":  "admin",
+                                            "Name":  "DC15.saDomain1.admin.ch",
+                                            "Properties":  {
+                                                               "StartProgram":  "psm /u t0-admin@saDomain1.admin.ch /a DC15.saDomain1.admin.ch /c PSM-RDP"
+                                                           },
+                                            "ColorFromParent":  true
+                                        },
+                                        {
+                                            "NLA":  "false",
+                                            "Type":  "RemoteDesktopConnection",
+                                            "ResizeMode":  "SmartSizing",
+                                            "ComputerName":  "pam-pm1.kubi.gg",
+                                            "Username":  "admin",
+                                            "Name":  "DC21.saDomain1.admin.ch",
+                                            "Properties":  {
+                                                               "StartProgram":  "psm /u t0-admin@saDomain1.admin.ch /a DC21.saDomain1.admin.ch /c PSM-RDP"
+                                                           },
+                                            "ColorFromParent":  true
+                                        },
+                                        {
+                                            "NLA":  "false",
+                                            "Type":  "RemoteDesktopConnection",
+                                            "ResizeMode":  "SmartSizing",
+                                            "ComputerName":  "pam-pm1.kubi.gg",
+                                            "Username":  "admin",
+                                            "Name":  "DC22.saDomain1.admin.ch",
+                                            "Properties":  {
+                                                               "StartProgram":  "psm /u t0-admin@saDomain1.admin.ch /a DC22.saDomain1.admin.ch /c PSM-RDP"
+                                                           },
+                                            "ColorFromParent":  true
+                                        },
+                                        {
+                                            "NLA":  "false",
+                                            "Type":  "RemoteDesktopConnection",
+                                            "ResizeMode":  "SmartSizing",
+                                            "ComputerName":  "pam-pm1.kubi.gg",
+                                            "Username":  "admin",
+                                            "Name":  "DC23.saDomain1.admin.ch",
+                                            "Properties":  {
+                                                               "StartProgram":  "psm /u t0-admin@saDomain1.admin.ch /a DC23.saDomain1.admin.ch /c PSM-RDP"
+                                                           },
+                                            "ColorFromParent":  true
+                                        },
+                                        {
+                                            "NLA":  "false",
+                                            "Type":  "RemoteDesktopConnection",
+                                            "ResizeMode":  "SmartSizing",
+                                            "ComputerName":  "pam-pm1.kubi.gg",
+                                            "Username":  "admin",
+                                            "Name":  "DC24.saDomain1.admin.ch",
+                                            "Properties":  {
+                                                               "StartProgram":  "psm /u t0-admin@saDomain1.admin.ch /a DC24.saDomain1.admin.ch /c PSM-RDP"
+                                                           },
+                                            "ColorFromParent":  true
+                                        }
+                                    ],
+                        "Type":  "Folder"
+                    }
+                ]
+}

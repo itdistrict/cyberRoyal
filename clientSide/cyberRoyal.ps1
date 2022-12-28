@@ -22,88 +22,68 @@ $webSettingsUrl = ""
 $psCertValidation = $false
 
 # switch debug mode on (only directly in powershell, cannot be used in RoyalTS)
-$debugOn = $false
+$debugOn = $true
 
 # settings localy, webSettingsUrl will replace this entries!
 $settings = @"
 {
-    "cyberRoyalMode": "list|pvwa",
-
-    "listMode": "groupRBAC|pvwaRBAC|listRBAC|listALL",
-    "listUrl": "https://YOUR-WEBHOST/ScriptData/cyberRoyalSafeAccountList.json",
-    "listPermissionUrl": "https://YOUR-WEBHOST/ScriptData/cyberRoyalPermissionList.json",
-    "adGroupSafeRegex": "CN=.*?(SafeName),OU=.*",
-
-    "pvwaUrl": "https://YOUR-PVWA/PasswordVault",
-
-    "pvwaAuthMethod": "LDAP",
+    "cyberRoyalMode": "list",
+    "listMode": "listRBAC",
+    "listUrl": "https://pam.kubi.gg/ScriptData/cyberRoyalSafeAccountList.json",
+	"listPermissionUrl": "https://pam.kubi.gg/ScriptData/cyberRoyalPermissionList.json",
+    "pvwaUrl": "https://pam.kubi.gg/PasswordVault",
+    "pvwaAuthMethod": "Cyberark",
     "pvwaAuthPrompt": 1,
-
-    "pvwaSafeSearch": "",
-    "pvwaSavedFilter": "Favorites|Recently",
-
-    "safeFilter": ".*",
-    "excludeAccounts": ["guest"],
-
-    "psmRdpAddress": "YOUR-PSM-RDP",
-    "psmSshAddress": "YOUR-PSM-SSH",
-
-    "entryName": "named",
-
-    "folderCreation": "safeName|safeDescription|platform|accountParameter",
-    "folderAccountParameter": "Location",
-
-    "enableNLA": 0,
-    "useWebPluginWin": "f008c2f0-5fb3-4c5e-a8eb-8072c1183088",
-
+	"usernameFromEnv": 0,
+    "psmRdpAddress": "pam-pm1.kubi.gg",
+    "psmSshAddress": "pam-psmp1.kubi.gg",
     "platformMappings": {
         "UnixSSH": {
-            "connections": [{ "type": "SSH", "components": ["PSMP-SSH"] }]
-        },
-        "LinuxLinux": {
-            "replacePsm": "another-ssh-proxy",
             "connections": [
-                { "type": "SSH", "components": ["PSMP-SSH"] },
-                { "type": "SFTP", "components": ["PSMP-SFTP"] }
-            ]
-        },
-        "WindowsDomain": {
-            "psmRemoteMachine": 1,
-            "connections": [{
-                    "type": "RDP",
-                    "components": ["PSM-RDP", "PSM-RDP-Console", "PSM-DSA"]
+                {
+                    "type": "SSH",
+                    "components": [
+                        "PSMP-SSH"
+                    ]
                 },
-                { "type": "SSH", "components": ["PSMP-BadExample"] }
+                {
+                    "type": "SFTP",
+                    "components": [
+                        "PSMP-SFTP"
+                    ]
+                },
+                {
+                    "type": "RDP",
+                    "components": [
+                        "PSM-WinSCP"
+                    ]
+                }
             ]
         },
-        "ExchangeDomainUser": {
-            "replacePsm": "ANOTHER-PSM-ADDRESS",
+        "WinDomain": {
+            "psmRemoteMachine": 1,
             "connections": [
-                { "type": "RDP", "components": ["PSM-RDP", "PSM-WebECP"] }
+                {
+                    "type": "RDP",
+                    "components": [
+                        "PSM-RDP"
+                    ]
+                }
             ]
         },
-        "Fortigate": {
-            "color": "#FF0000",
-            "connections": [
-                { "type": "RDP", "components": ["PSM-FortiWeb"] },
-                { "type": "SSH", "components": ["PSMP-SSH"] }
-            ]
-        },
-        "WindowsServerLocal": {
-            "replaceName": "",
-            "replaceRegex": "@domain.acme.com",
+        "WinServerLocal": {
             "namePrefix": "Local - ",
             "namePostfix": "",
             "psmRemoteMachine": 0,
             "entryName": "full",
-            "connections": [{ "type": "RDP", "components": ["PSM-RDP"] }]
-        },
-        "AzureWebAccount": {
-            "namePrefix": "Azure - ",
-            "webProtocol": "https",
-            "webOverwriteUri": "",
-            "webInputObject": "input#i0116",
-            "connections": [{ "type": "WEB", "components": ["AzureWebsite"] }]
+            "connections": [
+                {
+                    "type": "RDP",
+                    "components": [
+                        "PSM-RDP"
+                    ]
+                }
+            ]
         }
     }
 }
@@ -140,9 +120,11 @@ $settings = $settings | ConvertFrom-Json
 $platformMapping = @{ }
 foreach ( $prop in $settings.platformMappings.psobject.properties ) { $platformMapping[ $prop.Name ] = $prop.Value }
 
+# multiple used variables
 $cyberRoyalMode = $settings.cyberRoyalMode
 $pvwaUrl = $settings.pvwaUrl
 $listUrl = $settings.listUrl
+$listMode = $settings.listMode
 
 $pvwaAuthMethod = $settings.pvwaAuthMethod
 $pvwaAuthPrompt = $settings.pvwaAuthPrompt
@@ -150,7 +132,10 @@ $pvwaAuthPrompt = $settings.pvwaAuthPrompt
 $psmRdpAddress = $settings.psmRdpAddress
 $psmSshAddress = $settings.psmSshAddress
 
-# get user from RoyalTs User context or defined credentials
+# when are PVWA credentials required
+if ($cyberRoyalMode -eq "pvwa" -or $listMode -eq "pvwaRBAC") { $pvwaLoginRequired = $true } else { $pvwaAuthRequired = $false }
+
+# RoyalTs user context or credential will fill the following $variables$ if defined during script execution
 $caUser = @'
 $EffectiveUsername$
 '@
@@ -159,9 +144,22 @@ $caPass = @'
 $EffectivePassword$
 '@
 
-if ([string]::isNullOrEmpty( $caUser )) { $caUser = $env:username }
-if ((!$groupBasedMode) -and $pvwaAuthPrompt) {	$caCredentials = Get-Credential -UserName $caUser -Message "Please enter your CyberArk Username and Password" }
+if ($settings.usernameFromEnv) { $caUser = $env:username }
 
+if ($pvwaLoginRequired) {
+	if ($pvwaAuthPrompt) { 
+		if ($settings.usernameFromEnv) {
+			$caCredentials = Get-Credential -UserName $caUser -Message "Please enter your CyberArk Password" 
+		}
+		else {
+			$caCredentials = Get-Credential -Message "Please enter your CyberArk Username and Password"
+			$caUser = $caCredentials.UserName
+		}
+	} 
+	elseif ([string]::isNullOrEmpty( $caPass )) {
+		Write-Error "No PVWA Credentials provided" 
+	} 
+}
 
 # prepare RoyalJSON response
 $response = @{
@@ -201,12 +199,12 @@ function Get-PvwaSafes() {
 		$safes.Add($safe.SafeName)
 	}
 	Write-Debug "fetched safes from PVWA" 
-	$safes = $safes | Sort-Object
+	[System.Collections.Generic.List[string]]$safes = $safes | Sort-Object
 	return $safes
 }
 
-function Get-PermissionListSafes() {
-	$jsonFileData = Invoke-WebRequest -Uri $settings.listPermissionUrl -Method GET -UseBasicParsing -ContentType 'application/json; charset=utf-8'
+function Get-PermissionListSafes($listUrl) {
+	$jsonFileData = Invoke-WebRequest -Uri $listUrl -Method GET -UseBasicParsing -ContentType 'application/json; charset=utf-8'
 	$safePermissionList = $jsonFileData.Content | Foreach-Object { $_ -replace "\xEF\xBB\xBF", "" } | ConvertFrom-Json
 	$safes = [System.Collections.Generic.List[string]]::new();
 	foreach ($safePermission in $safePermissionList) {
@@ -214,18 +212,16 @@ function Get-PermissionListSafes() {
 			$safes = $safePermission.permissions
 		}
 	}
-	Write-Debug "fetched safes from PermissionList" 
-	$safes = $safes | Sort-Object
+	Write-Debug "fetched $($safes.Count) safe permissions from PermissionList"
+	if ($safes.Count -lt 1) { Write-Error "No safe permissions for user $caUser in PermissionList found" }
+	[System.Collections.Generic.List[string]]$safes = $safes | Sort-Object
 	return $safes
 }
-
 
 function Get-adGroupSafes() {
 	$userGroups = (New-Object System.DirectoryServices.DirectorySearcher("(&(objectCategory=User)(samAccountName=$( $caUser )))")).FindOne().GetDirectoryEntry()
 	$groups = $userGroups.memberOf
-
 	Write-Debug "fetched $caUser member groups $groups"
-
 	$safes = [System.Collections.Generic.List[string]]::new();
 	foreach ($group in $groups) {
 		$match = [regex]::Match($group, $settings.groupSafeRegex)
@@ -235,19 +231,29 @@ function Get-adGroupSafes() {
 		}
 	}
 	Write-Debug "fetched safes from groups" 
-
-	$safes = $safes | Sort-Object
+	[System.Collections.Generic.List[string]]$safes = $safes | Sort-Object
 	return $safes
 }
 
+function Get-PvwaAccountsFromList($listUrl) {
+	# get the prepared data file and remove BOM (thanks to .NET, IIS) if necessary
+	$jsonFileData = Invoke-WebRequest -Uri $listUrl -Method GET -UseBasicParsing -ContentType 'application/json; charset=utf-8'
+	Write-Debug "fetched json file length: $( $jsonFileData.RawContentLength)"
+	
+	# ConvertFrom-Json -AsHashtable only available in PWSH 7
+	# PSCustomObject with objects (key=value objects, where key=SafeName)
+	[PSCustomObject]$safesAndAccounts = $jsonFileData.Content | Foreach-Object { $_ -replace "\xEF\xBB\xBF", "" } | ConvertFrom-Json
+	# [System.Collections.SortedList]
+	return $safesAndAccounts
+}
+
 function Get-PvwaAccountsFromSafes($safes) {
-	$safesAndAccounts = [System.Collections.Generic.Dictionary[string, object]]::new();
+	$safesAndAccounts = [PSCustomObject]@{}
 	foreach ($safe in $safes) {
 		$accountURL = $pvwaUrl + "/api/Accounts?limit=1000&filter=safeName eq $($safe.SafeName)"
 		$accountsResult = $(Invoke-Request -Uri $accountURL -Headers $header -Method Get).content | ConvertFrom-Json
 		if ($null -ne $accountsResult.value -and $accountsResult.value.Length -gt 0) {
 			$safeEntry = @{ "SafeName" = $safe.SafeName; "Description" = $safe.Description; "Accounts" = [System.Collections.Generic.List[object]]::new(); }
-	
 			foreach ($account in $accountsResult.value) {
 				$accountEntry = @{ "userName" = $account.userName; "address" = $account.address ; "platformId" = $account.platformId; "remoteMachines" = $account.remoteMachinesAccess.remoteMachines }
 				foreach ($property in $additionalPlatformAccountProperties) {
@@ -256,24 +262,20 @@ function Get-PvwaAccountsFromSafes($safes) {
 				$safeEntry.Accounts.Add($accountEntry)
 				$accountEntriesCount++
 			}
-	
 			$safesAndAccounts.Add($safe.SafeName, $safeEntry)
 		}
 	}
-	$safesAndAccounts = $safesAndAccounts.GetEnumerator() | Sort-Object
 	return $safesAndAccounts
 }
 
 function Get-PvwaAccountsFromSavedFilter($savedFilter) {
-	$safesAndAccounts = [System.Collections.Generic.Dictionary[string, object]]::new();
+	$safesAndAccounts = [PSCustomObject]@{}
 	$accountURL = $pvwaUrl + "/api/Accounts?savedFilter=$savedFilter"
 	$accountsResult = $(Invoke-Request -Uri $accountURL -Headers $header -Method Get).content | ConvertFrom-Json
 	if ($null -ne $accountsResult.value -and $accountsResult.value.Length -gt 0) {
 		$safes = $accountsResult.value.safeName
-
 		foreach ($safe in $safes) {
 			$safeEntry = @{ "SafeName" = $safe; "Description" = ""; "Accounts" = [System.Collections.Generic.List[object]]::new(); }
-	
 			foreach ($account in $accountsResult.value) {
 				if ($account.safeName -eq $safe) {
 					$accountEntry = @{ "userName" = $account.userName; "address" = $account.address ; "platformId" = $account.platformId; "remoteMachines" = $account.remoteMachinesAccess.remoteMachines }
@@ -284,12 +286,9 @@ function Get-PvwaAccountsFromSavedFilter($savedFilter) {
 					$accountEntriesCount++
 				}
 			}
-	
 			$safesAndAccounts.Add($safe.SafeName, $safeEntry)
 		}
 	}
-
-	$safesAndAccounts = $safesAndAccounts.GetEnumerator() | Sort-Object
 	return $safesAndAccounts
 }
 
@@ -445,7 +444,7 @@ function Get-ConnectionEntry($accountDetail, $platformSetting, $connectionType, 
 #                MAIN                   #
 #########################################
 
-# TODO Switch cyberRoyal mode - set the users "permissive" safes to apply account connections
+# Switch cyberRoyal mode - set the users "permissive" safes to apply account connections
 switch ($cyberRoyalMode) {
 	"list" {
 		switch ($listMode) {
@@ -459,44 +458,33 @@ switch ($cyberRoyalMode) {
 				Write-Debug "fetched PVWA safes: $( $safes.Count )" 
 			}
 			"listRBAC" { 
-				$safes = Get-PermissionListSafes 
+				$safes = Get-PermissionListSafes($settings.listPermissionUrl)
 				Write-Debug "fetched PermissionList safes: $( $safes.Count )" 
 			}
 			"listALL" { 
-				$allAccountsMode = $true
+				$skipSafesMatching = $true
 				Write-Debug "applying all accounts from list" 
 			}
 		}
+		$safesAndAccounts = Get-PvwaAccountsFromList($listUrl)
 	}
 	"pvwa" {
 		Invoke-Logon
 		$safes = Get-PvwaSafes
-		Get-PvwaAccountsFromSafes($safes)
+		$safesAndAccounts = Get-PvwaAccountsFromSafes($safes)
+		#TODO: from saved filters
 	}
-	Default {}
 }
 
-# Get safes and accounts list either from prefetched data or via PVWA
-if ([string]::isNullOrEmpty($listUrl)) { 
-	$safesAndAccounts = Get-PvwaAccountsFromSafes($safes)
-}
-else {
-	# get the prepared data file and remove BOM (thanks to .NET, IIS) if necessary
-	$jsonFileData = Invoke-WebRequest -Uri $listUrl -Method GET -UseBasicParsing -ContentType 'application/json; charset=utf-8'
-	Write-Debug "fetched json file length: $( $jsonFileData.RawContentLength)"
-	
-	# Array with objects (key=value objects, where key=SafeName)
-	$safesAndAccounts = $jsonFileData.Content | Foreach-Object { $_ -replace "\xEF\xBB\xBF", "" } | ConvertFrom-Json
-}
-
-
-foreach ($safe in $safesAndAccounts) {
-   
+# safes as List
+# safesAndAccounts as SortedList
+# loop through all safes and accounts and create connection entries
+foreach ($safe in $safesAndAccounts.PsObject.Properties) {
 	# match safe or continue
-	if ( !$allAccountsMode -and !($safes.Contains( $safe.Key )) ) { continue }
+	if ( !$skipSafesMatching -and !($safes.Contains( $safe.Name )) ) { continue }
 
-	# apply safeFilter
-	if ($settings.safeFilter -and !([regex]::Match( $safe.Key, $settings.safeFilterRegex ).Success )) { continue } 
+	# match safeFilter or continue
+	if (![string]::IsNullOrEmpty($settings.safeFilter) -and !([regex]::Match( $safe.Name, $settings.safeFilter ).Success )) { continue } 
 
 	if ($settings.folderCreation -eq "none") {
 		$objects = [System.Collections.Generic.List[object]]::new();
@@ -509,10 +497,10 @@ foreach ($safe in $safesAndAccounts) {
 		}
 
 		switch ($settings.folderCreation) {
-			"safe.name" { $folder.Name = $safe.Key }
-			"safe.name-description" { $folder.Name = $safe.Key + ' - ' + $safe.Value.Description }
+			"safe.name" { $folder.Name = $safe.Name }
+			"safe.name-description" { $folder.Name = $safe.Name + ' - ' + $safe.Value.Description }
 			"safe.description" { $folder.Name = $safe.Value.Description }
-			"safe.description-name" { $folder.Name = $safe.Value.Description + ' - ' + $safe.Key }
+			"safe.description-name" { $folder.Name = $safe.Value.Description + ' - ' + $safe.Name }
 		}
 	}
 
@@ -521,7 +509,7 @@ foreach ($safe in $safesAndAccounts) {
 		$accountPlatform = $account.platformId
 
 		if (!$platformMapping.ContainsKey( $accountPlatform )) { continue }
-		if ($settings.excludeAccounts.Contains( $account.userName)) { continue }
+		if (![string]::IsNullOrEmpty($settings.excludeAccounts) -and $settings.excludeAccounts.Contains( $account.userName)) { continue }
 		if ($debugOn) { $debugNrAccounts++ }
 		# create connections for every configured connection component
 		if ($null -eq $account.remoteMachines) {
@@ -538,9 +526,9 @@ foreach ($safe in $safesAndAccounts) {
 		}
 		# create connections for each remoteMachine and every configured connection component
 		else {
-			$rmMachines = $account.remoteMachines.split(';', [System.StringSplitOptions]::RemoveEmptyEntries) | Sort-Object
-			foreach ($rmAddress in $rmMachines) {
-				Add-Member -InputObject $account -NotePropertyName 'target' -NotePropertyValue $rmAddress -Force
+			$remoteMachines = $account.remoteMachines.split(';', [System.StringSplitOptions]::RemoveEmptyEntries) | Sort-Object
+			foreach ($remoteMachine in $remoteMachines) {
+				Add-Member -InputObject $account -NotePropertyName 'target' -NotePropertyValue $remoteMachine -Force
 				$royalPlatform = $platformMapping[ $accountPlatform]
 				foreach ($connection in $royalPlatform.connections) {
 					foreach ($component in $connection.components) { 
@@ -573,5 +561,5 @@ else {
 }
 
 # logoff if required
-if (!$settings.groupBasedMode -and !$settings.allAccountsMode) { Invoke-Logoff }
+if ($pvwaLoginRequired) { Invoke-Logoff }
 Write-Debug "finished" 

@@ -141,8 +141,8 @@ $safes = $safesResult.value
 Write-Log -LogString "Retrieved $($safes.Count) CyberArk safes"
 if ($debugOn) { Write-Host $stopWatch.Elapsed + " catched safes: $($safes.Count)" }
 
-# get accounts from safe list
-$safesAndAccounts = [System.Collections.Generic.Dictionary[string, object]]::new();
+# get accounts from safe list and collect as sorted list, sorted by safename
+$safesAndAccounts = [System.Collections.SortedList]::new()
 $accountEntriesCount = 0
 foreach ($safe in $safes) {
 	$accountURL = $pvwaUrl + '/api/Accounts?limit=1000&filter=safeName eq ' + $safe.SafeName
@@ -167,10 +167,8 @@ if ($debugOn) { Write-Host $stopWatch.Elapsed + " catched safes accounts: $accou
 
 # check accounts list
 if ($safesAndAccounts.Count -gt 1) {
-	# sort Dictionary
-	$safesAndAccounts = $safesAndAccounts.GetEnumerator() | Sort-Object
 	$results = $safesAndAccounts | ConvertTo-Json -Depth 100
-
+	
 	$filePathBak = $filePath + '.bak'
 	Write-Log -LogString "Write backup file $filePathBak"
     

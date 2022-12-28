@@ -4,39 +4,39 @@
 #########################################
 #         ClientSide Script             #
 #########################################
+# cyberRoyalMode
+# - list
+# - pvwa
+# listMode 
+# - adGroupRBAC
+# - pvwaRBAC
+# - listRBAC
+# - listALL
 # See README.md for all setting values  #
 #########################################
-
 # TODO: 
-# 	Fetch Persmission and Accounts
-#  		FromAPI direct; filter: safe Regex, favorites etc.), 
-# 		From SafeAccountList.json; Map with AD Groups, JSON User/Groups (LDAP DIFF), FromAPI Safes, ALL oder filter safe Regex
-#
 #   Folder structure:
 # 		From Safes, Description, Platform or specified Account Attribute
-#
+
+# to start and debug directly from PowerShell the following params can be used
+param([String]$username, [Boolean]$debugAuthPrompt, [Boolean]$debugOn)
+
 # leave empty if none or enter URL to the json settings like "https://WebHost/ScriptData/cyberRoyalSettings.json"
 $webSettingsUrl = ""
 
 # enable or disable SSL/TLS certificate validation callback in PowerShell (.NET) for the web calls
 $psCertValidation = $false
 
-# switch debug mode on (only directly in powershell, cannot be used in RoyalTS)
-$debugOn = $true
-
 # settings localy, webSettingsUrl will replace this entries!
 $settings = @"
 {
     "cyberRoyalMode": "list",
-    "listMode": "listRBAC",
-    "listUrl": "https://pam.kubi.gg/ScriptData/cyberRoyalSafeAccountList.json",
-	"listPermissionUrl": "https://pam.kubi.gg/ScriptData/cyberRoyalPermissionList.json",
-    "pvwaUrl": "https://pam.kubi.gg/PasswordVault",
-    "pvwaAuthMethod": "Cyberark",
-    "pvwaAuthPrompt": 1,
-	"usernameFromEnv": 0,
-    "psmRdpAddress": "pam-pm1.kubi.gg",
-    "psmSshAddress": "pam-psmp1.kubi.gg",
+    "listMode": "listALL",
+    "listUrl": "https://YOUR-WEBHOSTScriptData/cyberRoyalSafeAccountList.json",
+	"listPermissionUrl": "https://YOUR-WEBHOST/ScriptData/cyberRoyalPermissionList.json",
+    "pvwaUrl": "https://YOUR-PVWA/PasswordVault",
+    "psmRdpAddress": "YOUR-PSM",
+    "psmSshAddress": "YOUR-PSMP",
     "platformMappings": {
         "UnixSSH": {
             "connections": [
@@ -110,6 +110,15 @@ else {
 #########################################
 #               Variables               #
 #########################################
+# RoyalTS user context or credential will fill the following $variables$ if defined during script execution
+$caUser = @'
+$EffectiveUsername$
+'@
+
+$caPass = @'
+$EffectivePassword$
+'@
+
 # get settings from web if available
 if (![string]::isNullOrEmpty($webSettingsUrl)) {
 	$settings = Invoke-WebRequest -Uri $webSettingsUrl -Method Get -UseBasicParsing -ContentType "application/json; charset=utf-8"
@@ -135,20 +144,12 @@ $psmSshAddress = $settings.psmSshAddress
 # when are PVWA credentials required
 if ($cyberRoyalMode -eq "pvwa" -or $listMode -eq "pvwaRBAC") { $pvwaLoginRequired = $true } else { $pvwaAuthRequired = $false }
 
-# RoyalTs user context or credential will fill the following $variables$ if defined during script execution
-$caUser = @'
-$EffectiveUsername$
-'@
-
-$caPass = @'
-$EffectivePassword$
-'@
-
+if (![string]::IsNullOrEmpty($username)) { $caUser = $username }
 if ($settings.usernameFromEnv) { $caUser = $env:username }
 
-if ($pvwaLoginRequired) {
-	if ($pvwaAuthPrompt) { 
-		if ($settings.usernameFromEnv) {
+if ($pvwaLoginRequired -or $debugAuthPrompt) {
+	if ($pvwaAuthPrompt -or $debugAuthPrompt) { 
+		if (![string]::IsNullOrEmpty($username) -or $settings.usernameFromEnv) {
 			$caCredentials = Get-Credential -UserName $caUser -Message "Please enter your CyberArk Password" 
 		}
 		else {
@@ -171,13 +172,13 @@ $response = @{
 #########################################
 
 function Write-Debug($message) {
-	if ($debugOn) { Write-Host $stopWatch.Elapsed + " - $message" }
+	if ($debugOn) { Write-Host $stopWatch.Elapsed + $message }
 }
 function Invoke-Logon() {
 	$global:header = @{ }
 	$header.Add("Content-type", "application/json") 
 	$logonURL = $pvwaUrl + "/api/auth/" + $pvwaAuthMethod + "/Logon"
-	if ($pvwaAuthPrompt) { $logonData = @{ username = $caCredentials.GetNetworkCredential().UserName; password = $caCredentials.GetNetworkCredential().Password; concurrentSession = $true; } | ConvertTo-Json }
+	if ($pvwaAuthPrompt -or $debugAuthPrompt) { $logonData = @{ username = $caCredentials.GetNetworkCredential().UserName; password = $caCredentials.GetNetworkCredential().Password; concurrentSession = $true; } | ConvertTo-Json }
 	else { $logonData = @{ username = $caUser; password = $caPass; concurrentSession = $true; } | ConvertTo-Json }
 	try {
 		$logonDataEnc = [System.Text.Encoding]::UTF8.GetBytes($logonData)
@@ -191,48 +192,48 @@ function Invoke-Logon() {
 function Invoke-Logoff() {
 	try { Invoke-WebRequest -Uri $( $pvwaUrl + "/api/auth/Logoff") -Headers $header -UseBasicParsing -Method Post | Out-Null } catch { }
 }
-function Get-PvwaSafes() {
+function Get-PvwaSafeDetails() {
 	if ([string]::IsNullOrEmpty($settings.pvwaSafeSearch)) { $safeURL = $pvwaUrl + "/api/Safes?limit=10000" } else { $safeURL = $pvwaUrl + "/api/Safes?limit=10000&search=$($settings.pvwaSafeSearch)" }
 	$safesList = $( Invoke-WebRequest -Uri $safeURL -Headers $header -Method Get -UseBasicParsing).content | ConvertFrom-Json
-	$safes = [System.Collections.Generic.List[string]]::new();
+	$safes = [System.Collections.Generic.List[object]]::new();
 	foreach ($safe in $safesList.value) {
-		$safes.Add($safe.SafeName)
+		$safes.Add($safe)
 	}
-	Write-Debug "fetched safes from PVWA" 
-	[System.Collections.Generic.List[string]]$safes = $safes | Sort-Object
+	Write-Debug "fetched $($safes.Count) safes from PVWA" 
+	[System.Collections.Generic.List[object]]$safes = $safes | Sort-Object
 	return $safes
 }
 
-function Get-PermissionListSafes($listUrl) {
+function Get-PermissionListSafeNames($listUrl) {
 	$jsonFileData = Invoke-WebRequest -Uri $listUrl -Method GET -UseBasicParsing -ContentType 'application/json; charset=utf-8'
 	$safePermissionList = $jsonFileData.Content | Foreach-Object { $_ -replace "\xEF\xBB\xBF", "" } | ConvertFrom-Json
-	$safes = [System.Collections.Generic.List[string]]::new();
+	$safeNames = [System.Collections.Generic.List[string]]::new();
 	foreach ($safePermission in $safePermissionList) {
 		if ($safePermission.user -eq $caUser) {
-			$safes = $safePermission.permissions
+			$safeNames = $safePermission.permissions
 		}
 	}
-	Write-Debug "fetched $($safes.Count) safe permissions from PermissionList"
-	if ($safes.Count -lt 1) { Write-Error "No safe permissions for user $caUser in PermissionList found" }
-	[System.Collections.Generic.List[string]]$safes = $safes | Sort-Object
-	return $safes
+	Write-Debug "fetched $($safeNames.Count) safeNames from PermissionList"
+	if ($safeNames.Count -lt 1) { Write-Error "No safe permissions for user $caUser in PermissionList found" }
+	[System.Collections.Generic.List[string]]$safeNames = $safeNames | Sort-Object
+	return $safeNames
 }
 
-function Get-adGroupSafes() {
+function Get-adGroupSafeNames() {
 	$userGroups = (New-Object System.DirectoryServices.DirectorySearcher("(&(objectCategory=User)(samAccountName=$( $caUser )))")).FindOne().GetDirectoryEntry()
 	$groups = $userGroups.memberOf
 	Write-Debug "fetched $caUser member groups $groups"
-	$safes = [System.Collections.Generic.List[string]]::new();
+	$safeNames = [System.Collections.Generic.List[string]]::new();
 	foreach ($group in $groups) {
 		$match = [regex]::Match($group, $settings.groupSafeRegex)
 		if ($match.Success) {
 			$safeName = $match.Groups[1].ToString()
-			$safes.Add($safeName)
+			$safeNames.Add($safeName)
 		}
 	}
-	Write-Debug "fetched safes from groups" 
-	[System.Collections.Generic.List[string]]$safes = $safes | Sort-Object
-	return $safes
+	Write-Debug "fetched $($safeNames.Count) safeNames from adGroups" 
+	[System.Collections.Generic.List[string]]$safeNames = $safeNames | Sort-Object
+	return $safeNames
 }
 
 function Get-PvwaAccountsFromList($listUrl) {
@@ -247,16 +248,17 @@ function Get-PvwaAccountsFromList($listUrl) {
 	return $safesAndAccounts
 }
 
-function Get-PvwaAccountsFromSafes($safes) {
-	$safesAndAccounts = [PSCustomObject]@{}
-	foreach ($safe in $safes) {
+#TODO: check safeFilter
+function Get-PvwaAccountsFromSafes($safeDetails) {
+	$safesAndAccounts = [System.Collections.SortedList]::new()
+	foreach ($safe in $safeDetails) {
 		$accountURL = $pvwaUrl + "/api/Accounts?limit=1000&filter=safeName eq $($safe.SafeName)"
-		$accountsResult = $(Invoke-Request -Uri $accountURL -Headers $header -Method Get).content | ConvertFrom-Json
+		$accountsResult = $( Invoke-WebRequest -Uri $accountURL -Headers $header -Method Get).content | ConvertFrom-Json
 		if ($null -ne $accountsResult.value -and $accountsResult.value.Length -gt 0) {
 			$safeEntry = @{ "SafeName" = $safe.SafeName; "Description" = $safe.Description; "Accounts" = [System.Collections.Generic.List[object]]::new(); }
 			foreach ($account in $accountsResult.value) {
 				$accountEntry = @{ "userName" = $account.userName; "address" = $account.address ; "platformId" = $account.platformId; "remoteMachines" = $account.remoteMachinesAccess.remoteMachines }
-				foreach ($property in $additionalPlatformAccountProperties) {
+				foreach ($property in $settings.pvwaAdditionalPlatformAccountProperties) {
 					$accountEntry += @{$property = $account.platformAccountProperties.$property }
 				}
 				$safeEntry.Accounts.Add($accountEntry)
@@ -265,13 +267,14 @@ function Get-PvwaAccountsFromSafes($safes) {
 			$safesAndAccounts.Add($safe.SafeName, $safeEntry)
 		}
 	}
+	Write-Debug "retrieved $accountEntriesCount accounts from PVWA"
 	return $safesAndAccounts
 }
 
 function Get-PvwaAccountsFromSavedFilter($savedFilter) {
-	$safesAndAccounts = [PSCustomObject]@{}
+	$safesAndAccounts = [System.Collections.SortedList]::new()
 	$accountURL = $pvwaUrl + "/api/Accounts?savedFilter=$savedFilter"
-	$accountsResult = $(Invoke-Request -Uri $accountURL -Headers $header -Method Get).content | ConvertFrom-Json
+	$accountsResult = $(Invoke-WebRequest -Uri $accountURL -Headers $header -Method Get).content | ConvertFrom-Json
 	if ($null -ne $accountsResult.value -and $accountsResult.value.Length -gt 0) {
 		$safes = $accountsResult.value.safeName
 		foreach ($safe in $safes) {
@@ -449,16 +452,16 @@ switch ($cyberRoyalMode) {
 	"list" {
 		switch ($listMode) {
 			"adGroupRBAC" { 
-				$safes = Get-adGroupSafes
+				$safes = Get-adGroupSafeNames
 				Write-Debug "fetched adGroup safes: $( $safes.Count )" 
 			}
 			"pvwaRBAC" { 
 				Invoke-Logon
-				$safes = Get-PvwaSafes 
+				$safes = Get-PvwaSafeDetails 
 				Write-Debug "fetched PVWA safes: $( $safes.Count )" 
 			}
 			"listRBAC" { 
-				$safes = Get-PermissionListSafes($settings.listPermissionUrl)
+				$safes = Get-PermissionListSafeNames($settings.listPermissionUrl)
 				Write-Debug "fetched PermissionList safes: $( $safes.Count )" 
 			}
 			"listALL" { 
@@ -470,14 +473,20 @@ switch ($cyberRoyalMode) {
 	}
 	"pvwa" {
 		Invoke-Logon
-		$safes = Get-PvwaSafes
-		$safesAndAccounts = Get-PvwaAccountsFromSafes($safes)
+		$safesDetails = Get-PvwaSafeDetails
+		$safes = $safesDetails.SafeName
+		$safesAndAccountsSortedList = Get-PvwaAccountsFromSafes($safesDetails)
+		# Convert SortedList to PSCustomObject List
+		[PSCustomObject]$safesAndAccounts = $safesAndAccountsSortedList | ConvertTo-Json -Depth 100 | ConvertFrom-Json
 		#TODO: from saved filters
 	}
 }
 
+if ([string]::IsNullOrEmpty($settings.folderCreation)) {
+	$objects = [System.Collections.Generic.List[object]]::new();
+}
 # safes as List
-# safesAndAccounts as SortedList
+# safesAndAccounts as PSCustomObject List
 # loop through all safes and accounts and create connection entries
 foreach ($safe in $safesAndAccounts.PsObject.Properties) {
 	# match safe or continue
@@ -485,11 +494,7 @@ foreach ($safe in $safesAndAccounts.PsObject.Properties) {
 
 	# match safeFilter or continue
 	if (![string]::IsNullOrEmpty($settings.safeFilter) -and !([regex]::Match( $safe.Name, $settings.safeFilter ).Success )) { continue } 
-
-	if ($settings.folderCreation -eq "none") {
-		$objects = [System.Collections.Generic.List[object]]::new();
-	}
-	else {
+	if (![string]::IsNullOrEmpty($settings.folderCreation)) {
 		$folder = @{
 			Objects         = [System.Collections.Generic.List[object]]::new();
 			Type            = "Folder"
@@ -497,10 +502,11 @@ foreach ($safe in $safesAndAccounts.PsObject.Properties) {
 		}
 
 		switch ($settings.folderCreation) {
-			"safe.name" { $folder.Name = $safe.Name }
-			"safe.name-description" { $folder.Name = $safe.Name + ' - ' + $safe.Value.Description }
-			"safe.description" { $folder.Name = $safe.Value.Description }
-			"safe.description-name" { $folder.Name = $safe.Value.Description + ' - ' + $safe.Name }
+			"safeName" { $folder.Name = $safe.Name }
+			"safeName-Description" { $folder.Name = $safe.Name + ' - ' + $safe.Value.Description }
+			"safeDescription" { $folder.Name = $safe.Value.Description }
+			"safeDescription-Name" { $folder.Name = $safe.Value.Description + ' - ' + $safe.Name }
+			Default { $folder.Name = $safe.Name }
 		}
 	}
 
@@ -518,7 +524,7 @@ foreach ($safe in $safesAndAccounts.PsObject.Properties) {
 			foreach ($connection in $royalPlatform.connections) {
 				foreach ($component in $connection.components) { 
 					$connectionEntry = Get-ConnectionEntry $account $royalPlatform $connection.Type $component
-					if ($settings.folderCreation -eq "none") { $objects.Add( $connectionEntry ) }
+					if ([string]::IsNullOrEmpty($settings.folderCreation)) { $objects.Add( $connectionEntry ) }
 					else { $folder.Objects.Add( $connectionEntry ) }
 					if ($debugOn) { $debugNrServerConnections++ }
 				}
@@ -533,7 +539,7 @@ foreach ($safe in $safesAndAccounts.PsObject.Properties) {
 				foreach ($connection in $royalPlatform.connections) {
 					foreach ($component in $connection.components) { 
 						$connectionEntry = Get-ConnectionEntry $account $royalPlatform $connection.Type $component
-						if ($settings.folderCreation -eq "none") { $objects.Add($connectionEntry) }
+						if ([string]::IsNullOrEmpty($settings.folderCreation)) { $objects.Add($connectionEntry) }
 						else { $folder.Objects.Add($connectionEntry) }
 						if ($debugOn) { $debugNrServerConnections++ }
 					}
@@ -541,19 +547,20 @@ foreach ($safe in $safesAndAccounts.PsObject.Properties) {
 			}
 		}
 	}
-	if ($settings.folderCreation -eq "none" -and $objects.Length -gt 0) {
-		$response.Objects.Add($objects)
-	}
-	elseif ($folder.Objects.Length -gt 0) {
+	if (![string]::IsNullOrEmpty($settings.folderCreation) -and $folder.Objects.Length -gt 0) {
 		$response.Objects.Add($folder)
 	}
+}
+
+if ([string]::IsNullOrEmpty($settings.folderCreation) -and $objects.Length -gt 0) {
+	$response.Objects = $objects
 }
 
 # send RoyalJSON response
 $jsonResponse = $response | ConvertTo-Json -Depth 100
 
 if ($debugOn) { 
-	Write-Host $stopWatch.Elapsed + " got $debugNrServerConnections server connections" 
+	Write-Debug "got $debugNrServerConnections server connections" 
 	Out-File -FilePath "data.json" -Encoding UTF8 -InputObject $jsonResponse
 }
 else {

@@ -1,6 +1,5 @@
 [
     { "user": "admin", "permissions": ["PAM", "T0-WinAD"] },
-    { "user": "user", "permissions": ["PAM", "T0-WinAD"] },
     { "user": "user1", "permissions": ["PAM", "T1-WinServers"] },
     { "user": "user2", "permissions": ["T0-WinAD"] },
     { "user": "user3", "permissions": ["PAM"] },

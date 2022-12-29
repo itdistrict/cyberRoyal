@@ -1,20 +1,33 @@
 {
+    "cyberRoyalMode": "list|pvwa",
+
+    "listMode": "adGroupRBAC|pvwaRBAC|listRBAC|listALL",
+    "listUrl": "https://YOUR-WEBHOST/ScriptData/cyberRoyalSafeAccountList.json",
+    "listPermissionUrl": "https://YOUR-WEBHOST/ScriptData/cyberRoyalPermissionList.json",
+    "adGroupSafeRegex": "CN=.*?(SafeName),OU=.*",
+
     "pvwaUrl": "https://YOUR-PVWA/PasswordVault",
-    "dataUrl": "https://YOUR-WEBHOST/ScriptData/cyberArkSafeAccountList.json",
-    "authMethod": "LDAP",
-    "authPrompt": 1,
+
+    "pvwaAuthMethod": "LDAP",
+    "pvwaAuthPrompt": false,
+
+    "pvwaSafeSearch": "",
+    "pvwaSavedFilter": "Favorites|Recently",
+	"pvwaAdditionalPlatformAccountProperties": ["Location","FQDN"],
+
+    "safeFilter": ".*",
+    "excludeAccounts": ["guest"],
+
     "psmRdpAddress": "YOUR-PSM-RDP",
     "psmSshAddress": "YOUR-PSM-SSH",
-    "allAccountsMode": 0,
-    "safeFilter": 0,
-    "safeFilterRegex": ".*_OnylThisSafes.*",
-    "groupBasedMode": 0,
-    "groupBasedSafeRegex": "CN=.*?(SafeName),OU=.*",
-    "folderCreation": "safe.name",
-    "entryName": "named",
-    "enableNLA": 0,
-    "excludeAccounts": ["guest"],
+
+    "folderCreation": "safeName|safeDescription|platform|accountParameter",
+    "folderAccountParameter": "Location",
+
+    "enableNLA": false,
+	"rdpResizeMode": "SmartSizing",
     "useWebPluginWin": "f008c2f0-5fb3-4c5e-a8eb-8072c1183088",
+
     "platformMappings": {
         "UnixSSH": {
             "connections": [{ "type": "SSH", "components": ["PSMP-SSH"] }]
@@ -54,7 +67,6 @@
             "namePrefix": "Local - ",
             "namePostfix": "",
             "psmRemoteMachine": 0,
-            "entryName": "full",
             "connections": [{ "type": "RDP", "components": ["PSM-RDP"] }]
         },
         "AzureWebAccount": {

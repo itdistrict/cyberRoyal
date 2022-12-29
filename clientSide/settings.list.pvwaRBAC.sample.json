@@ -1,0 +1,46 @@
+{
+    "cyberRoyalMode": "list",
+    "listMode": "pvwaRBAC",
+    "listUrl": "https://pam.kubi.gg/ScriptData/cyberRoyalSafeAccountList.json",
+    "pvwaUrl": "https://pam.kubi.gg/PasswordVault",
+    "pvwaAuthMethod": "Cyberark",
+    "pvwaAuthPrompt": false,
+    "pvwaSafeSearch": "T0",
+    "folderCreation": "safeName",
+
+    "psmRdpAddress": "pam-pm1.kubi.gg",
+    "psmSshAddress": "pam-psmp1.kubi.gg",
+    "platformMappings": {
+        "UnixSSH": {
+            "connections": [{
+                    "type": "SSH",
+                    "components": ["PSMP-SSH"]
+                },
+                {
+                    "type": "SFTP",
+                    "components": ["PSMP-SFTP"]
+                },
+                {
+                    "type": "RDP",
+                    "components": ["PSM-WinSCP"]
+                }
+            ]
+        },
+        "WinDomain": {
+            "psmRemoteMachine": 1,
+            "connections": [{
+                "type": "RDP",
+                "components": ["PSM-RDP"]
+            }]
+        },
+        "WinServerLocal": {
+            "namePrefix": "Local - ",
+            "namePostfix": "",
+            "psmRemoteMachine": 0,
+            "connections": [{
+                "type": "RDP",
+                "components": ["PSM-RDP"]
+            }]
+        }
+    }
+}

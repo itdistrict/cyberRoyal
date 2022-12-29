@@ -1,0 +1,14 @@
+{
+    "psCertValidation":  false,
+    "apiPasswordKey":  "C:\\Scripts\\keys\\secret.key",
+    "scriptPath":  "C:\\Scripts\\",
+    "debugOn":  false,
+    "apiPasswordFile":  "C:\\Scripts\\secret.ini",
+    "additionalPlatformAccountProperties":  [
+                                         "location",
+                                         "port"
+                                     ],
+    "apiUsername":  "cyberRoyal",
+    "pvwaUrl":  "https://pam.acme.gg/PasswordVault",
+    "listPath":  "C:\\Cyberark\\ScriptData\\cyberRoyalSafeAccountList.json"
+}

@@ -3,55 +3,41 @@
     "listMode": "listRBAC",
     "listUrl": "https://pam.kubi.gg/ScriptData/cyberRoyalSafeAccountList.json",
     "listPermissionUrl": "https://pam.kubi.gg/ScriptData/cyberRoyalPermissionList.json",
+    "folderCreation": "safeName",
+
     "psmRdpAddress": "pam-pm1.kubi.gg",
     "psmSshAddress": "pam-psmp1.kubi.gg",
     "platformMappings": {
         "UnixSSH": {
-            "connections": [
-                {
+            "connections": [{
                     "type": "SSH",
-                    "components": [
-                        "PSMP-SSH"
-                    ]
+                    "components": ["PSMP-SSH"]
                 },
                 {
                     "type": "SFTP",
-                    "components": [
-                        "PSMP-SFTP"
-                    ]
+                    "components": ["PSMP-SFTP"]
                 },
                 {
                     "type": "RDP",
-                    "components": [
-                        "PSM-WinSCP"
-                    ]
+                    "components": ["PSM-WinSCP"]
                 }
             ]
         },
         "WinDomain": {
             "psmRemoteMachine": 1,
-            "connections": [
-                {
-                    "type": "RDP",
-                    "components": [
-                        "PSM-RDP"
-                    ]
-                }
-            ]
+            "connections": [{
+                "type": "RDP",
+                "components": ["PSM-RDP"]
+            }]
         },
         "WinServerLocal": {
             "namePrefix": "Local - ",
             "namePostfix": "",
             "psmRemoteMachine": 0,
-            "entryName": "full",
-            "connections": [
-                {
-                    "type": "RDP",
-                    "components": [
-                        "PSM-RDP"
-                    ]
-                }
-            ]
+            "connections": [{
+                "type": "RDP",
+                "components": ["PSM-RDP"]
+            }]
         }
     }
 }

@@ -9,7 +9,7 @@
     "pvwaUrl": "https://YOUR-PVWA/PasswordVault",
 
     "pvwaAuthMethod": "LDAP",
-    "pvwaAuthPrompt": 1,
+    "pvwaAuthPrompt": false,
 
     "pvwaSafeSearch": "",
     "pvwaSavedFilter": "Favorites|Recently",
@@ -21,12 +21,11 @@
     "psmRdpAddress": "YOUR-PSM-RDP",
     "psmSshAddress": "YOUR-PSM-SSH",
 
-    "entryName": "named",
-
     "folderCreation": "safeName|safeDescription|platform|accountParameter",
     "folderAccountParameter": "Location",
 
-    "enableNLA": 0,
+    "enableNLA": false,
+	"rdpResizeMode": "SmartSizing",
     "useWebPluginWin": "f008c2f0-5fb3-4c5e-a8eb-8072c1183088",
 
     "platformMappings": {
@@ -68,7 +67,6 @@
             "namePrefix": "Local - ",
             "namePostfix": "",
             "psmRemoteMachine": 0,
-            "entryName": "full",
             "connections": [{ "type": "RDP", "components": ["PSM-RDP"] }]
         },
         "AzureWebAccount": {

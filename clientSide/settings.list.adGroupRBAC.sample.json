@@ -4,12 +4,13 @@
     "listUrl": "https://pam.kubi.gg/ScriptData/cyberRoyalSafeAccountList.json",
     "adGroupSafeRegex": "CN=.*?(T?[0|1|2]?_?[P|T]_.+?)(-[M|E|U])?,OU=PAM,DC=ACME,DC=COM",
     "pvwaUrl": "https://pam.kubi.gg/PasswordVault",
+    "folderCreation": "safeName",
+
     "psmRdpAddress": "pam-pm1.kubi.gg",
     "psmSshAddress": "pam-psmp1.kubi.gg",
     "platformMappings": {
         "UnixSSH": {
-            "connections": [
-                {
+            "connections": [{
                     "type": "SSH",
                     "components": [
                         "PSMP-SSH"
@@ -31,28 +32,23 @@
         },
         "WinDomain": {
             "psmRemoteMachine": 1,
-            "connections": [
-                {
-                    "type": "RDP",
-                    "components": [
-                        "PSM-RDP"
-                    ]
-                }
-            ]
+            "connections": [{
+                "type": "RDP",
+                "components": [
+                    "PSM-RDP"
+                ]
+            }]
         },
         "WinServerLocal": {
             "namePrefix": "Local - ",
             "namePostfix": "",
             "psmRemoteMachine": 0,
-            "entryName": "full",
-            "connections": [
-                {
-                    "type": "RDP",
-                    "components": [
-                        "PSM-RDP"
-                    ]
-                }
-            ]
+            "connections": [{
+                "type": "RDP",
+                "components": [
+                    "PSM-RDP"
+                ]
+            }]
         }
     }
 }

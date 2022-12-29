@@ -3,29 +3,28 @@
 ![cyberRoyal](./resources/cyberRoyal.png)
 
 - [cyberRoyal - RoyalTS Dynamic Folder for CyberArk PAS](#cyberroyal---royalts-dynamic-folder-for-cyberark-pas)
-  - [Overview](#overview)
-  - [Requirements](#requirements)
-  - [Setup ServerSide](#setup-serverside)
-    - [Place ServerSide script and define data folder](#place-serverside-script-and-define-data-folder)
-    - [Configure audit user](#configure-audit-user)
-      - [Store password as secure string file with key](#store-password-as-secure-string-file-with-key)
-    - [Run the ServerSide script as scheduled Task](#run-the-serverside-script-as-scheduled-task)
-    - [ServerSide script parameters](#serverside-script-parameters)
-    - [ServerSide logs](#serverside-logs)
-  - [Setup ClientSide](#setup-clientside)
-    - [RoyalTS Dynamic Folder](#royalts-dynamic-folder)
-    - [ClientSide script switches](#clientside-script-switches)
-    - [ClientSide script settings](#clientside-script-settings)
-      - [Platform Mappings](#platform-mappings)
-    - [Use AD groups instead of Safes API Query](#use-ad-groups-instead-of-safes-api-query)
-  - [RoyalTS recommended settings](#royalts-recommended-settings)
-  - [References](#references)
-  - [Known limitations](#known-limitations)
+	- [Overview](#overview)
+	- [Requirements](#requirements)
+	- [ServerSide](#serverside)
+		- [Place ServerSide script and define data folder](#place-serverside-script-and-define-data-folder)
+		- [Configure audit user](#configure-audit-user)
+		- [Setup ServerSide](#setup-serverside)
+		- [ServerSide settings.json parameters](#serverside-settingsjson-parameters)
+		- [ServerSide logs](#serverside-logs)
+	- [Setup ClientSide](#setup-clientside)
+		- [RoyalTS Dynamic Folder](#royalts-dynamic-folder)
+		- [ClientSide script switches](#clientside-script-switches)
+		- [ClientSide script settings](#clientside-script-settings)
+			- [Platform Mappings](#platform-mappings)
+		- [Use AD groups instead of Safes API Query](#use-ad-groups-instead-of-safes-api-query)
+	- [RoyalTS recommended settings](#royalts-recommended-settings)
+	- [References](#references)
+	- [Known limitations](#known-limitations)
 
 ## Overview
 
 The RoyalTS integration with CyberArk PAS comes with a server and a client side.
-The server side provides a prefetched list of safes and accounts.
+The server side provides a prefetched list of safes and accounts, as well as permissions.
 The client side provides a powershell script for a "Dynamic Folder" in RoyalTS which creates all connection entries based on the safes and accounts the client user has access to.
 
 ## Requirements
@@ -37,7 +36,7 @@ The client side provides a powershell script for a "Dynamic Folder" in RoyalTS w
 - A webserver that can provide the server side prefetched list (e.g. use an IIS from a PVWA component server)
 - Domain accounts in CyberArk must provide their targets in the "RemoteMachineAddress" attribute
 
-## Setup ServerSide
+## ServerSide
 
 The Server Side part generates a list of safes and accounts.
 Because the WebAPI call to list all accounts in all your accessable safes can take its time, it will be much faster to use a pre-fetched list.
@@ -54,55 +53,23 @@ Put the user password into a key encrypted PowerShell secure string file. The ke
 
 It could be a good practice to use AAM Credential Provider to retreive the audit user password instead of define a secure string file.
 
-#### Store password as secure string file with key
+### Setup ServerSide
 
-Create a AES key
+Use the [setup](/serverSide/setup.ps1) script to setup the scripts with the auditor user credentials and settings.json file
 
-```powershell
-$Key = New-Object Byte[] 32
-[Security.Cryptography.RNGCryptoServiceProvider]::Create().GetBytes($Key)
-$Key | out-file C:\Scripts\keys\secret.key
-```
+### ServerSide settings.json parameters
 
-Write the API password (here as "yourPassword") into a secure string file with the provided key
-
-```powershell
-"yourPassword" | ConvertTo-SecureString -AsPlainText -Force | ConvertFrom-SecureString -Key (get-content "C:\Scripts\keys\secret.key") | Set-Content "C:\Scripts\secret.ini"
-```
-
-Use it within the serverSide script
-
-```powershell
-# Secrets for CyberArk Auditor user or an user in Auditors group to read all safes and accounts
-$ApiUsername = "Auditor"
-$ApiPasswordFile = "C:\scripts\secret.ini"
-$ApiPasswordKey = "C:\scripts\keys\secret.key"
-```
-
-### Run the ServerSide script as scheduled Task
-
-Run the server side script as an scheduled task to retrieve the safes and accounts periodically.
-Take the **cyberArkSafeAccountList.xml** as a template for the scheduled task or add directly 
-
-```powershell
-$TaskName = "CyberRoyal-UpdateSafeAccountList"
-$actions = (New-ScheduledTaskAction -Execute "%SystemRoot%\system32\WindowsPowerShell\v1.0\powershell.exe" -Argument "-ExecutionPolicy Bypass -File `"C:\Scripts\cyberarkSafeAccountList.ps1`"")
-$trigger = New-ScheduledTaskTrigger -Once -At (Get-Date) -RepetitionInterval (New-TimeSpan -Minutes 60)
-$settings = New-ScheduledTaskSettingsSet -ExecutionTimeLimit (New-TimeSpan -Minutes 60)
-Register-ScheduledTask -TaskName $TaskName -TaskPath "\CyberArk\" -Settings $settings -Trigger $trigger -User SYSTEM -Action $actions -Force
-```
-
-### ServerSide script parameters
-
-| Parameter        | Values                       | Description                                                                                                                                 |
-| ---------------- | ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
-| pvwaUrl          | "https://PVWA/PasswordVault" | Base URL of the PVWA where the script will use the API to retrieve all safes and accounts                                                   |
-| filePath         | "c:\path\file.json"          | Full path where the safes and accounts list JSON will be stored                                                                             |
-| apiUsername      | "Auditor"                    | CyberArk (internal) API user with auditor permissions or read/list permissions to all required safes and accounts to generate the list from |
-| apiPasswordFile  | "C:\scripts\secret.ini"      | Secure String password file                                                                                                                 |
-| apiPasswordKey   | "C:\scripts\keys\secret.key" | Secure String key file to decrypt the password file                                                                                         |
-| debugOn          | boolean $true or $false      | Provides console output if scripts executed in console and writes more details in logfile and event logs                                    |
-| psCertValidation | boolean $true or $false      | Enable/Disable SSL/TLS certificate validation callback in PowerShell (.NET) - disable this is self-signed certs are use                     |
+| Parameter                           | Values                       | Description                                                                                                                                 |
+| ----------------------------------- | ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| pvwaUrl                             | "https://PVWA/PasswordVault" | Base URL of the PVWA where the script will use the API to retrieve all safes and accounts                                                   |
+| scriptPath                          | "c:\path\"                   | Full path where the scripts will be                                                                                                         |
+| listPath                            | "c:\path\file.json"          | Full path where the safes and accounts list JSON will be stored                                                                             |
+| apiUsername                         | "Auditor"                    | CyberArk (internal) API user with auditor permissions or read/list permissions to all required safes and accounts to generate the list from |
+| apiPasswordFile                     | "C:\scripts\secret.ini"      | Secure String password file                                                                                                                 |
+| apiPasswordKey                      | "C:\scripts\keys\secret.key" | Secure String key file to decrypt the password file                                                                                         |
+| debugOn                             | boolean $true or $false      | Provides console output if scripts executed in console and writes more details in logfile and event logs                                    |
+| psCertValidation                    | boolean $true or $false      | Enable/Disable SSL/TLS certificate validation callback in PowerShell (.NET) - disable this is self-signed certs are use                     |
+| additionalPlatformAccountProperties | string Array                 | List of "PlatformAccountProperties" to additionally fetch and provide in the SafeAndAccountsList                                            |
 
 ### ServerSide logs
 
@@ -141,34 +108,88 @@ Switches on the script to run in different modes
 | Parameter        | Values                                 | Description                                                                                                                                                                |
 | ---------------- | -------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | webSettingsUrl   | "https://WebServer/Data/settings.json" | Will take all settings for the client side script from a central stored JSON instead of locally defined in the PS script. Leave empty to take the locally defined settings |
-| debugOn          | boolean $true or $false                | switch debug mode on, can be used only directly in powershell, cannot be used in RoyalTS dynamic folder                                                                    |
 | psCertValidation | boolean $true or $false                | Enable/Disable SSL/TLS certificate validation callback in PowerShell (.NET) - disable this is self-signed certs are use                                                    |
 
 ### ClientSide script settings
 
-Script settings in JSON format which can be defined within the script or taken from a URL
+Script settings in JSON format which can be defined within the script or taken from a URL. See also the sample settings in [clientSide](/clientSide/)
 
-| Parameter           | Values                                                                          | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
-| ------------------- | ------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| pvwaUrl             | "https://PVWA/PasswordVault"                                                    | PVWA URL used for the API login with the executing user (not relevant in groupBasedMode or allAccountsMode)                                                                                                                                                                                                                                                                                                                                                              |
-| dataUrl             | "https://WebServer/ScriptData/cyberArkSafeAccountList.json"                     | URL where the safes accounts list JSON file can be retrieved                                                                                                                                                                                                                                                                                                                                                                                                             |
-| authMethod          | LDAP/RADIUS/CyberArk                                                            | Defines the API authentication Method for the user to authenticate against the PVWA (not relevant in groupBasedMode or allAccountsMode)                                                                                                                                                                                                                                                                                                                                  |
-| authPrompt          | boolean 1 (true) or 0 (false)                                                   | Does not work with PowerShell 7 (Core). Prompts for CyberArk API credentials (recommended) instead of taking saved credentials from RoyalTS. This setting does not apply in groupBasedMode                                                                                                                                                                                                                                                                               |
-| psmRdpAddress       | "psm.domain.local"                                                              | PSM for RDP Server address FQDN/IP to take for the created RDP connection entries                                                                                                                                                                                                                                                                                                                                                                                        |
-| psmSshAddress       | "psmp.domain.local"                                                             | PSM for SSH Server address FQDN/IP to take for the created SSH connection entries                                                                                                                                                                                                                                                                                                                                                                                        |
-| safeFilter          | boolean 1 (true) or 0 (false)                                                   | Enables (true) or disables (false) a safe filtering based on the **safeFilterRegex** parameter. If enabled, the script creates only connection entries from safes where the name matches the regex                                                                                                                                                                                                                                                                       |
-| safeFilterRegex     | string (RegEx in PS)                                                            | Regular Expression to match a safe name. A regex like _".\*domain.\*"_  will match e.g. a safe with name "WinDomainAccounts"                                                                                                                                                                                                                                                                                                                                             |
-| groupBasedMode      | boolean 1 (true) or 0 (false)                                                   | Enables (true) or disables (false) the group based mode. This mode will take the actual executing domain user from \$env:username and queries the Active Directory for direct group memeberships distinguishedNames. If enabled, the script creats only connetion entries from safes where the name matches a corresponding user group, taken from the first match group in the defined regex **groupBasedSafeRegex** parameter. This mode does not require a PVWA login |
-| groupBasedSafeRegex | string (RegEx in PS)                                                            | Regular Expression to match a safe name as the first match group. A regex like _"CN=.\*-(.+-WinDomain.+)-Users,OU=.\*"_ will match e.g. a safe with name "T0-WinDomainAccounts" from a group DN like _"CN=rolePrefix-T0-WinDomainAccounts-Users,OU=pam,DC=domain,DC=loc"_                                                                                                                                                                                                |
-| allAccountsMode     | boolean 1 (true) or 0 (false)                                                   | Will create connection entries from all accounts which exist in the safes and accounts list. This mode does not require a PVWA login                                                                                                                                                                                                                                                                                                                                     |
-| useWebPluginWin     | "", "f008c2f0-5fb3-4c5e-a8eb-8072c1183088"                                      | If not empty then this RoyalTS Windows Plugin ID will be taken as "Browser Engine" for Web connection entries. Also possible to just use Default Settings in RoyalTS                                                                                                                                                                                                                                                                                                     |
-| folderCreation      | none, safe.name, safe.description, safe.name-description, safe.description-name | Will creates folder for all connection entries based on the provided naming scheme: **none** will create no folders, **safe.name** will create folder based on the safe name the accounts are in, **safe.description** from the safe description, **safe.name-description** from safe name + description and **safe.description-name** from safe description + safe name                                                                                                 |
-| entryName           | simple (DEFAULT), named, full                                                   | Connection Entry name which can be **simple** or just empty as default  and only has the "address" as entry name, **named** as "username@address" and **full** as "target - username@address" for domain users                                                                                                                                                                                                                                                           |
-| enableNLA           | ScrollBars, SmartResize (default)                                               | Sets the resize mode for RDP connection in RoyalTS (RyoalTS v6 default will do a Reconnect)                                                                                                                                                                                                                                                                                                                                                                              |
-| rdpResizeMode       | boolean 1 (true) or 0 (false)                                                   | Enables NLA in RDP connection entries                                                                                                                                                                                                                                                                                                                                                                                                                                    |
-| excludeAccounts     | string array["user1","user2"]                                                   | Excludes these accounts / usernames from creating any connection entries                                                                                                                                                                                                                                                                                                                                                                                                 |
-> In some specific RoyalTS versions there is an issue with "true" und "false" value, where RoyalTS did rewrite these keywords in capital letters. This becomes an invalid type in JSON format so we use 0 (false) or 1 (true)
-> instead of the keywords in our json settings
+```powershell
+$settings = @{
+	cyberRoyalMode           = "list" #list | pvwa
+
+	listMode                 = "listALL" #adGroupRBAC | pvwaRBAC | listRBAC | listALL
+	listUrl                  = "https://YOUR-WEBHOST/ScriptData/cyberRoyalSafeAccountList.json" # required for "list" mode - json that includes safes and accounts
+	listPermissionUrl        = "https://YOUR-WEBHOST/ScriptData/cyberRoyalPermissionList.json" # required fore "listRBAC" listMode - json that includes user and its safe use permissions
+	listAdGroupSafeRegex     = "CN=.*?(SafeName),OU=.*" # required for listMode "adGroupRBAC" - regex for mapping AD Groups where match group 1 matches safenames
+
+	pvwaUrl                  = "https://YOUR-PVWA/PasswordVault" # required for "pvwa" mode and "pvwaRBAC" listMode
+	pvwaAuthMethod           = "LDAP" # CyberArk | LDAP | RADIUS
+	pvwaAuthPrompt           = $true # prompt mask for username and password (PWSH7 not supported)
+	usernameFromEnv          = $false # takes cyberark username from $env:username
+
+	pvwaSafeSearch           = "" # get only safes from PVWA according search
+	pvwaSavedFilter          = "Favorites" # Favorites | Recently |... "pvwa" mode - get acounts only from PVWA Saved Filters
+	pvwaAdditionalProperties = @("location", "FQDN") # "pvwa" mode - get additional account properties when query PVWA for all accounts
+
+	psmRdpAddress            = "YOUR-PSM" # required
+	psmSshAddress            = "YOUR-PSMP" # required
+
+	safeFilter               = ".*" # handle only safes that match this regex
+	excludeAccounts          = @("guest", "player") # exclude accounts with this username 
+
+	connectionDescription    = "location" # property to set in connection description - default is safe description
+
+	folderCreation           = "safeName" # safeName | safeDescription | safeName-Description | safeDescription-Name | platform | accountParameter - create folders according different properties
+	folderAccountParameter   = "Location" # use a specific account property to create folders when using folderCreation = "accountParameter"
+
+	enableNLA                = $false # enable NLA/CredSSP in RoyalTS RDP connections which can take the saved credentials
+	useWebPluginWin          = "f008c2f0-5fb3-4c5e-a8eb-8072c1183088" # use specifid browser plugin when creating web connections (chrome engine)
+
+	platformMappings         = @{
+		UnixSSH        = @{
+			connections = @(
+				@{type = "SSH"; components = @("PSMP-SSH") },
+				@{type = "SFTP"; components = @("PSMP-SFTP") },
+				@{type = "RDP"; components = @("PSM-WinSCP") }
+			)
+		}
+		WinDomain      = @{
+			psmRemoteMachine = 1
+			connections      = @(
+				@{type = "RDP"; components = @("PSM-RDP") }
+			)
+		}
+		WinServerLocal = @{
+			namePrefix       = "Local - "
+			namePostfix      = ""
+			color            = "#FF0000"
+			replaceRegex     = "@domain.acme.com"
+			psmRemoteMachine = 0
+			connections      = @(
+				@{type = "RDP"; components = @("PSM-RDP") }
+			)
+		}
+	}
+}
+```
+
+| Parameter            | Values                                                                                            | Description                                                                                                                                                                                                                                                                                                                                                              |
+| -------------------- | ------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| pvwaUrl              | "https://PVWA/PasswordVault"                                                                      | PVWA URL used for the API login with the executing user (not relevant in listModes without PVWA)                                                                                                                                                                                                                                                                         |
+| listUrl              | "https://WebServer/ScriptData/cyberRoyalSafeAccountList.json"                                     | URL where the safes accounts list JSON file can be retrieved                                                                                                                                                                                                                                                                                                             |
+| pvwaAuthMethod       | LDAP/RADIUS/CyberArk                                                                              | Defines the API authentication Method for the user to authenticate against the PVWA (not relevant in groupBasedMode or allAccountsMode)                                                                                                                                                                                                                                  |
+| pvwaAuthPrompt       | boolean 1 (true) or 0 (false)                                                                     | Does not work with PowerShell 7 (Core). Prompts for CyberArk API credentials (recommended) instead of taking saved credentials from RoyalTS. This setting does not apply in groupBasedMode                                                                                                                                                                               |
+| psmRdpAddress        | "psm.domain.local"                                                                                | PSM for RDP Server address FQDN/IP to take for the created RDP connection entries                                                                                                                                                                                                                                                                                        |
+| psmSshAddress        | "psmp.domain.local"                                                                               | PSM for SSH Server address FQDN/IP to take for the created SSH connection entries                                                                                                                                                                                                                                                                                        |
+| safeFilter           | string (RegEx in PS)                                                                              | Regular Expression to match a safe name. A regex like _".\*domain.\*"_  will match e.g. a safe with name "WinDomainAccounts"                                                                                                                                                                                                                                             |
+| listAdGroupSafeRegex | string (RegEx in PS)                                                                              | Regular Expression to match a safe name as the first match group. A regex like _"CN=.\*-(.+-WinDomain.+)-Users,OU=.\*"_ will match e.g. a safe with name "T0-WinDomainAccounts" from a group DN like _"CN=rolePrefix-T0-WinDomainAccounts-Users,OU=pam,DC=domain,DC=loc"_                                                                                                |
+| useWebPluginWin      | "", "f008c2f0-5fb3-4c5e-a8eb-8072c1183088"                                                        | If not empty then this RoyalTS Windows Plugin ID will be taken as "Browser Engine" for Web connection entries. Also possible to just use Default Settings in RoyalTS                                                                                                                                                                                                     |
+| folderCreation       | safeName, safeDescription, safeName-Description, safeDescription-Name, platform, accountParameter | Will creates folder for all connection entries based on the provided naming scheme: **none** will create no folders, **safe.name** will create folder based on the safe name the accounts are in, **safe.description** from the safe description, **safe.name-description** from safe name + description and **safe.description-name** from safe description + safe name |
+| enableNLA            | ScrollBars, SmartResize (default)                                                                 | Sets the resize mode for RDP connection in RoyalTS (RyoalTS v6 default will do a Reconnect)                                                                                                                                                                                                                                                                              |
+| rdpResizeMode        | "SmartSizing"(false)                                                                              | RoyalTS RDP Resize mode                                                                                                                                                                                                                                                                                                                                                  |
+| excludeAccounts      | string array["user1","user2"]                                                                     | Excludes these accounts / usernames from creating any connection entries                                                                                                                                                                                                                                                                                                 |
+> In some specific RoyalTS versions there is an issue with "true" und "false" value, where RoyalTS did rewrite these keywords in capital letters. This becomes an invalid type in JSON format. As a workaround you can also use 0 (false) or 1 (true) instead of the keywords in our json settings
 
 #### Platform Mappings
 
@@ -250,9 +271,9 @@ Example of a platform mapping
 
 ### Use AD groups instead of Safes API Query
 
-With the _groupBasedMode_ it is possible to use AD groups instead of PVWA access permissions to find out which safes and accounts the user has access to.
+With the listMode  _adGroupRBAC_ it is possible to use AD groups instead of PVWA access permissions to find out which safes and accounts the user has access to.
 The script takes the $env:username from the domain joined windows client where RoyalTS is running and fetched all group memberships of this user from AD.
-Groups DN's are compared with the _groupBasedSafeRegex_ and if a Group DN matches the first regex match group (1) should match exactly with a safe name in CyberArk.
+Groups DN's are compared with the _listAdGroupSafeRegex_ and if a Group DN matches the first regex match group (1) should match exactly with a safe name in CyberArk.
 
 An expression like
 

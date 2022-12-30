@@ -208,8 +208,8 @@ function Get-PermissionListSafeNames($listUrl) {
 	$jsonFileData = Invoke-WebRequest -Uri $listUrl -Method GET -UseBasicParsing -ContentType 'application/json; charset=utf-8'
 	$safePermissionList = $jsonFileData.Content | Foreach-Object { $_ -replace "\xEF\xBB\xBF", "" } | ConvertFrom-Json
 	$safeNames = [System.Collections.Generic.List[string]]::new();
-	foreach ($safePermission in $safePermissionList) {
-		if ($safePermission.user -eq $caUser) {
+	foreach ($safePermission in $safePermissionList.users) {
+		if ($safePermission.username -eq $caUser) {
 			$safeNames = $safePermission.permissions
 		}
 	}

@@ -1,0 +1,16 @@
+{
+  "safeRegex": "^PAM-(.+)-.+$",
+  "listPath": "C:\\Cyberark\\ScriptData\\ldapPermissionList.json",
+  "scriptName": "ldapPermissionList.ps1",
+  "ssl": true,
+  "sslVerify": false,
+  "passwordKey": "C:\\Scripts\\plugins\\ldap\\keys\\bind.key",
+  "name": "LDAP-Host",
+  "scriptPath": "C:\\Scripts\\plugins\\ldap",
+  "passwordFile": "C:\\Scripts\\plugins\\ldap\\bind.ini",
+  "bindUser": "CN=pam-ldap-bind,CN=Users,DC=acme,DC=com",
+  "server": "ldap.acme.com",
+  "port": 636,
+  "groupNameAttribute": "cn",
+  "userNameAttribute": "cn"
+}

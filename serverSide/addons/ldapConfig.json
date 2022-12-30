@@ -1,8 +1,0 @@
-{
-    "name": "AD-LAB",
-    "host": "172.16.0.200",
-    "port": 389,
-    "bindUser": "pam-ldap-bind@lab.local",
-    "passwordKey": "C:\\Scripts\\addons\\keys\\ldap.key",
-    "passwordFile": "C:\\Scripts\\addons\\ldap.ini"
-}

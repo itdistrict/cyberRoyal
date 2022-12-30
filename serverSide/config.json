@@ -1,0 +1,15 @@
+{
+    "psCertValidation":  false,
+    "apiPasswordKey":  "secret.key",
+    "scriptPath":  "C:\\Scripts\\",
+    "apiPasswordFile":  "secret.ini",
+    "debugOn":  false,
+    "apiUsername":  "Auditor",
+    "pvwaUrl":  "https://127.0.0.1/PasswordVault",
+    "listPath":  "C:\\Cyberark\\ScriptData\\cyberRoyalSafeAccountList.json",
+    "scriptName":  "cyberRoyal.ps1",
+    "additionalPlatformAccountProperties":  [
+                                                "Location",
+                                                "Port"
+                                            ]
+}

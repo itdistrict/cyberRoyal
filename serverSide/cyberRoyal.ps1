@@ -8,19 +8,19 @@
 #########################################
 
 # Read settings
-$settingsPath = Join-Path $PSScriptRoot "settings.json"
-if (!(Test-Path -Path $settingsPath)) { Write-Error "No settings.json file was found in $settingsPath"; exit }
-$cyberRoyalSettings = Get-Content -Path $settingsPath -Encoding utf8 | ConvertFrom-Json
+$configPath = Join-Path $PSScriptRoot "config.json"
+if (!(Test-Path -Path $configPath)) { Write-Error "No config.json file was found in $configPath"; exit }
+$cyberRoyalConfig = Get-Content -Path $configPath -Encoding utf8 | ConvertFrom-Json
 
 # Settings
-$pvwaUrl = $cyberRoyalSettings.pvwaUrl
-$filePath = $cyberRoyalSettings.listPath
-$apiUsername = $cyberRoyalSettings.apiUsername
-$apiPasswordFile = $cyberRoyalSettings.apiPasswordFile
-$apiPasswordKey = $cyberRoyalSettings.apiPasswordKey
-$additionalPlatformAccountProperties = $cyberRoyalSettings.additionalPlatformAccountProperties
-$psCertValidation = $cyberRoyalSettings.psCertValidation # enable or disable SSL/TLS certificate validation callback in PowerShell (.NET) for the web calls
-$debugOn = $cyberRoyalSettings.debugOn # Turn debug on to see more console output and get more details in log
+$pvwaUrl = $cyberRoyalConfig.pvwaUrl
+$listPath = $cyberRoyalConfig.listPath
+$apiUsername = $cyberRoyalConfig.apiUsername
+$apiPasswordFile = $cyberRoyalConfig.apiPasswordFile
+$apiPasswordKey = $cyberRoyalConfig.apiPasswordKey
+$additionalPlatformAccountProperties = $cyberRoyalConfig.additionalPlatformAccountProperties
+$psCertValidation = $cyberRoyalConfig.psCertValidation # enable or disable SSL/TLS certificate validation callback in PowerShell (.NET) for the web calls
+$debugOn = $cyberRoyalConfig.debugOn # Turn debug on to see more console output and get more details in log
 
 #########################################
 #           Powershell Settings         #
@@ -169,19 +169,19 @@ if ($debugOn) { Write-Host $stopWatch.Elapsed + " catched safes accounts: $accou
 if ($safesAndAccounts.Count -gt 1) {
 	$results = $safesAndAccounts | ConvertTo-Json -Depth 100
 	
-	$filePathBak = $filePath + '.bak'
-	Write-Log -LogString "Write backup file $filePathBak"
+	$listPathBak = $listPath + '.bak'
+	Write-Log -LogString "Write backup file $listPathBak"
     
-	if (Test-Path $filePath) {
-		if (Test-Path $filePathBak) {
-			Remove-Item $filePathBak
+	if (Test-Path $listPath) {
+		if (Test-Path $listPathBak) {
+			Remove-Item $listPathBak
 		}
-		Move-Item $filePath $filePathBak
+		Move-Item $listPath $listPathBak
 	}
 
-	Write-Log -LogString "Write new list file $filePath"
+	Write-Log -LogString "Write new list file $listPath"
 	$Utf8NoBomEncoding = New-Object System.Text.UTF8Encoding $False
-	[System.IO.File]::WriteAllLines($filePath, $results, $Utf8NoBomEncoding)
+	[System.IO.File]::WriteAllLines($listPath, $results, $Utf8NoBomEncoding)
 }
 else {
 	Write-Log -LogString "Retrieved none CyberArk accounts, will not replace existing list" -AsError

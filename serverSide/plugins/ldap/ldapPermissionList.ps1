@@ -71,7 +71,6 @@ foreach ($group in $groups) {
 		$username = $($user.Attributes.$userNameAttribute.GetValues([string]))
 		Write-Host "User in $($group.DistinguishedName): $username"
 		if ($null -eq $userAndGroups[$username]) { $userAndGroups[$username] = [System.Collections.Generic.List[string]]::new() }
-		$safeName = 
 		
 		$match = [regex]::Match($groupname, $ldapConfig.safeRegex)
 		if ($match.Success) {
